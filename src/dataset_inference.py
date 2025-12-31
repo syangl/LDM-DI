@@ -352,7 +352,7 @@ def feature_extract(pipe, sus_ds, hold_out_ds, test_i, split):
         return mia_scores
 
     # get dataset features
-    # 1. Current MIA methods
+    # 1. current MIA methods
     mia_secmi_sus_scores, mia_secmi_hold_out_scores = exec_mia(method="secmi")
     mia_secmi_sus_scores = convert2tensor32(mia_secmi_sus_scores)
     mia_secmi_hold_out_scores = convert2tensor32(mia_secmi_hold_out_scores)
@@ -373,7 +373,7 @@ def feature_extract(pipe, sus_ds, hold_out_ds, test_i, split):
     mia_rediffusemi_sus_scores = convert2tensor32(mia_rediffusemi_sus_scores)
     mia_rediffusemi_hold_out_scores = convert2tensor32(mia_rediffusemi_hold_out_scores)
 
-    # 2. Our memory feature methods
+    # 2. our memory feature methods
     # 2.1 HintMI
     mia_hintmi_sus_scores, mia_hintmi_hold_out_scores = exec_mia(method="hintmi", choice="ssim")
     mia_hintmi_sus_scores = convert2tensor32(mia_hintmi_sus_scores)
@@ -389,7 +389,7 @@ def feature_extract(pipe, sus_ds, hold_out_ds, test_i, split):
     mia_ssim_entropy_sus_scores = convert2tensor32(mia_ssim_entropy_sus_scores)
     mia_ssim_entropy_hold_out_scores = convert2tensor32(mia_ssim_entropy_hold_out_scores)
 
-    # # 2.4 prompt sensitivity
+    # # 2.4 SemanSim
     mia_semansim_sus_scores, mia_semansim_hold_out_scores = exec_mia(method="semansim", choice="cos_sim")
     mia_semansim_sus_scores = convert2tensor32(mia_semansim_sus_scores)
     mia_semansim_hold_out_scores = convert2tensor32(mia_semansim_hold_out_scores)
@@ -567,11 +567,11 @@ if __name__ == "__main__":
     TTest_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
     os.makedirs(TTest_OUTPUT_DIR, exist_ok=True)
 
-    # Check which tests have existing predictions (Fast Path)
-    # If preds_{i}.json exists, we don't need to load the dataset or the heavy diffusion pipeline
+    # Check which tests have already existed.
+    # If preds_{i}.json exists, we don't need to load the dataset or the heavy diffusion pipeline.
     preds_exist_flags = [os.path.exists(os.path.join(TTest_OUTPUT_DIR, f"preds_{i}.json")) for i in range(SPLIT_TIMES)]
 
-    # Only load the heavy pipeline if we are missing predictions for at least one split
+    # Only load the heavy pipeline if we are missing predictions for at least one split.
     if not all(preds_exist_flags):
         print("Some prediction files are missing. Loading pipeline for inference...")
         pipe = txt2img_pipeline_select(base_model_id=attack_args.base_model_id, PIPE_TYPE=PIPE_TYPE)
