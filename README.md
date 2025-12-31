@@ -24,7 +24,7 @@ Existing MIAs typically reduce this dataset-level problem to a collection of ind
 
 ### Mitigate Distribution Shift Between $D_{\text{sus}}$ and $D_{\text{hold}}$
 
-We use a KNN-based mitigation on CLIP embedding space (**CLIP-KNN**) to obtain distributionally similar evaluation datasets $D_{\text{sus}}$ and $D_{\text{hold}}, and quantify distribution similarity from both semantic space and texture complexity.
+We use a KNN-based mitigation on CLIP embedding space (**CLIP-KNN**) to obtain distributionally similar evaluation datasets $D_{\text{sus}}$ and $D_{\text{hold}}$, and quantify distribution similarity from both semantic space and texture complexity.
 
 ### Solution: A Dataset Inference On Pre-trained Large-scale Diffusion Models
 
