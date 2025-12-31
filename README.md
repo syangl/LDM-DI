@@ -7,7 +7,7 @@ proprietary data to train these models. Recent researches have focused on member
 
 In this paper, we first analysis MIA's failure on pre-trained large-scale diffusion models due to the conflation of true training-set membership with distribution shift between evaluation datasets. Further, we propose a more realistic evaluation framework that mitigates distribution shift between candidate datasets. Finally, we introduce a dataset inference method beyond individual samples and instead infers whether an image dataset was used in pre-training.
 
-##### Why MIAs Failed on Pre-trained Large-scale Diffusion Models?
+### Why MIAs Failed on Pre-trained Large-scale Diffusion Models?
 
 Ideal Membership Inference. Given a target diffusion model $f_{\theta}$, unlicensed set $D_{\text{sus}}$ suspected to be training data and known hold-out set $D_{\text{hold}}$, the detector executes a hypothesis testing:
 
@@ -22,11 +22,11 @@ Existing MIAs typically reduce this dataset-level problem to a collection of ind
 
 <img title="" src="imgs/shift.png" alt="" width="530" data-align="center">
 
-##### Mitigate Distribution Shift Between $D_{\text{sus}}$ and $D_{\text{hold}}$
+### Mitigate Distribution Shift Between $D_{\text{sus}}$ and $D_{\text{hold}}$
 
 We propose a KNN-based mitigation method on CLIP embedding space (**CLIP-KNN**) to obtain distributionally similar evaluation datasets $D_{\text{sus}}$ and $D_{\text{hold}}$. And we quantify distribution similarity from both semantic space and texture complexity.
 
-##### Solution: A Dataset Inference On Pre-trained Large-scale Diffusion Models
+### Solution: A Dataset Inference On Pre-trained Large-scale Diffusion Models
 
 <img title="" src="imgs\overview.png" alt="" data-align="center">
 
@@ -37,7 +37,7 @@ data. **(1)** For $D_{\text{sus}}$ and $D_{\text{hold}}$, we split each of them 
 
 ## Start Experiment
 
-#### Requirements
+### Requirements
 
 Runtime Environmemt is listed in ```src/requirements.txt```. We use following environment configurations:
 
@@ -49,33 +49,33 @@ Runtime Environmemt is listed in ```src/requirements.txt```. We use following en
 
 + CUDA 12.8
 
-#### Configurations
+### Configurations
 
 All our experiment parameter comfigurations are defined in ```src/exp_utils/src/exp_utils/config_util/attack_config.py```
 
-#### Start experimental framework
+### Start experimental framework
 
-##### 1. Get all datasets you need
+#### 1. Get all datasets you need
 
 First, run code in ```dataset/``` to get each full training dataset and hold-out dataset. To clean bad downloaded images, use ```dataset/clean_bad_images.py```
 
-##### 2. Run CLIP-KNN and evaluation
+#### 2. Run CLIP-KNN and evaluation
 
 After datasets obtained, run ```src/exp_utils/dataset_process_util/clip_knn.py```to mitigate distribution shift to get a pair of $D_{\text{sus}}$ and $D_{\text{hold}}$ with similar distributions. Use ```src/exp_utils/dataset_process_util/cls_test.py``` to evaluate distribution similarity  via the binary classifier and ```src/exp_utils/dataset_process_util/complex_test.py``` via image texture complexity.
 
-##### 3. Run dataset inference
+#### 3. Run dataset inference
 
 Finally, run ```src/dataset_inference.py``` to execute the dataset inference based on distributionally similar $D_{\text{sus}}$ and $D_{\text{hold}}$, and ```src/reject_H0_analysis.py``` for determining dynamic calibration threshold and whether to reject the null hypothesis.
 
 ---
 
-##### Additional: Run Single Membership Inference Attack
+#### Additional: Run Single Membership Inference Attack
 
 Use ```src/exp_utils/mi_util/baseline_mi_main.py``` to independently run each MIAs used to extract memorization features used in dataset inference.
 
 To run our MI feature methods, use ```src/exp_utils/mi_util/ours_mi_main.py```.
 
-##### Models and Datasets
+#### Models and Datasets
 
 All pre-trained models are available in their official repo as follows:
 
