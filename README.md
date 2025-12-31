@@ -28,7 +28,7 @@ We propose a KNN-based mitigation method on CLIP embedding space (**CLIP-KNN**) 
 
 ##### Solution: A Dataset Inference On Pre-trained Large-scale Diffusion Models
 
-![](imgs\overview.png)
+<img title="" src="imgs\overview.png" alt="" data-align="center">
 
 Finally, we perform a dataset inference as a more realistic method to detect whether unlicensed dataset is suspected to be used in target diffusion model’s training
 data. **(1)** For $D_{\text{sus}}$ and $D_{\text{hold}}$, we split each of them into disjoint blocks $A$ and $B$. **(2)** Then, we aggregate sample-level membership features for blocks $A$ and $B$. **(3)** Subsequently, we train a linear model through the aggregated features of training block $A$ and hold-out block $A$. This model predicts membership probability scores for each sample in training block $B$ and hold-out block $B$. **(4)** Eventually, a mean Welch’s T-Test calibrated by dynamic thresholds on the two $B$ sets is conducted to get reliable evidence for membership sets. **（5）** After multiple independent T-Test, we will significantly reject the null hypothesis.
