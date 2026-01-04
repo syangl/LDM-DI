@@ -62,7 +62,6 @@ def create_parser():
             "laion_high_resolution",
             # hold-out sets
             "coco_2017_val",
-            "coco_2014_val",
             "laion2b_multi_translated",
             "nocaps",
 
