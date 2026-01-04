@@ -75,9 +75,6 @@ def create_parser():
             "coco_2017_val_split1",
             "coco_2017_val_split2",
             # val-val setting2
-            "coco_2017_val_coco_2014_val",
-            "coco_2014_val_coco_2017_val",
-            # val-val setting3
             "mixed_1",
             "mixed_2",
 
@@ -93,9 +90,6 @@ def create_parser():
             "coco_2017_val_split1",
             "coco_2017_val_split2",
             # val-val setting2
-            "coco_2017_val_coco_2014_val",
-            "coco_2014_val_coco_2017_val",
-            # val-val setting3
             "mixed_1",
             "mixed_2",
 
@@ -107,9 +101,6 @@ def create_parser():
             "coco_2017_val_split1",
             "coco_2017_val_split2",
             # val-val setting2
-            "coco_2017_val_coco_2014_val",
-            "coco_2014_val_coco_2017_val",
-            # val-val setting3
             "mixed_1",
             "mixed_2",
         ],
@@ -162,7 +153,6 @@ attack_args = parser.parse_args()
 # datesetname for plot
 dataset_plot_names = {
     "coco_2017_val": "COCO2017-val",
-    "coco_2014_val": "COCO2014-val",
     "laion_aesthetics_v2_5p0": "LAION Aesthetics v2 5+",
     "laion_high_resolution": "LAION High Resolution",
     "commoncatalog_cc_by": "CommonCatalog CC-BY",
