@@ -15,7 +15,7 @@ def create_parser():
                                 help="Pipeline data type")
 
     pipeline_group.add_argument("--base_model_id",
-                                default="/root/autodl-tmp/model/",
+                                default="YOUR_MODEL_PATH",
                                 help="Diffusion Model path")
 
     pipeline_group.add_argument("--model_name",
