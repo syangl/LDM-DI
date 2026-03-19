@@ -61,7 +61,7 @@ First, run code in ```dataset/``` to get each full training dataset and hold-out
 
 #### 2. Run CLIP-KNN and evaluation
 
-After datasets obtained, run ```src/exp_utils/dataset_process_util/clip_knn.py```to mitigate distribution shift to get a pair of $D_{\text{sus}}$ and $D_{\text{hold}}$ with similar distributions. Use ```src/exp_utils/dataset_process_util/cls_test.py``` to evaluate distribution similarity  via the binary classifier and ```src/exp_utils/dataset_process_util/complex_test.py``` via image texture complexity.
+After datasets obtained, run ```src/exp_utils/dataset_process_util/clip_knn.py```to mitigate distribution shift to get a pair of $D_{\text{sus}}$ and $D_{\text{hold}}$ with similar distributions. Use ```src/exp_utils/dataset_process_util/seman_bound.py``` to evaluate distribution similarity  via the binary classifier and ```src/exp_utils/dataset_process_util/texture_bound.py``` via image texture complexity.
 
 #### 3. Run dataset inference
 

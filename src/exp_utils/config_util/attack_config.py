@@ -17,6 +17,10 @@ def create_parser():
     pipeline_group.add_argument("--base_model_id",
                                 default="YOUR_MODEL_PATH",
                                 help="Diffusion Model path")
+    
+    pipeline_group.add_argument("--local_dataset_path",
+                                default="YOUR_LOCAL_DATASET_PATH",
+                                help="Local dataset path, should contain all datasets used in this attack")
 
     pipeline_group.add_argument("--model_name",
                                 type=str,
@@ -51,15 +55,15 @@ def create_parser():
     dataset_group.add_argument(
         "--used_datasets",
         default=[
-            "commoncatalog_cc_by_coco_2017_val",
-            "coco_2017_val_commoncatalog_cc_by",
+            "laion2b_multi_translated",
+            "laion_aesthetics_v2_5p0",
         ],
         choices=[
             ## non-iid datasets
             # training sets
             "commoncatalog_cc_by",
             "laion_aesthetics_v2_5p0",
-            "laion_high_resolution",
+            # "laion_high_resolution",
             # hold-out sets
             "coco_2017_val",
             "laion2b_multi_translated",
@@ -114,7 +118,7 @@ def create_parser():
 
     dataset_group.add_argument("--dataset_total_num",
                                type=int,
-                               default=2000,
+                               default=1000,
                                help="Total number of dataset")
 
     # baseline group
@@ -196,8 +200,8 @@ MI_DIR = f"{OUTPUT_ROOT_PATH}/mi_eval/"
 # create dataset config
 dataset_config_1 = {
     "dataset": attack_args.used_datasets[0],
-    "load_path": f"YOUR_LOCAL_DATASET_PATH/{attack_args.used_datasets[0]}/data/{attack_args.splits[0]}",  
-    "load_num": attack_args.dataset_total_num, 
+    "load_path": f"{attack_args.local_dataset_path}/{attack_args.used_datasets[0]}/data/{attack_args.splits[0]}",
+    "load_num": attack_args.dataset_total_num,
     "split": attack_args.splits[0],
 }
 
@@ -211,8 +215,8 @@ TRAIN_STATISTIC_DIR = f"{STATISTIC_ROOT_PATH}/{dataset_config_1['dataset']}/{att
 # create dataset config
 dataset_config_2 = {
     "dataset": attack_args.used_datasets[1],
-    "load_path": f"YOUR_LOCAL_DATASET_PATH/{attack_args.used_datasets[1]}/data/{attack_args.splits[1]}",  
-    "load_num": attack_args.dataset_total_num, 
+    "load_path": f"{attack_args.local_dataset_path}/{attack_args.used_datasets[1]}/data/{attack_args.splits[1]}",
+    "load_num": attack_args.dataset_total_num,
     "split": attack_args.splits[1],
 }
 
