@@ -58,55 +58,55 @@ def create_parser():
             "laion2b_multi_translated",
             "laion_aesthetics_v2_5p0",
         ],
-        choices=[
-            ## non-iid datasets
-            # training sets
-            "commoncatalog_cc_by",
-            "laion_aesthetics_v2_5p0",
-            # "laion_high_resolution",
-            # hold-out sets
-            "coco_2017_val",
-            "laion2b_multi_translated",
-            "nocaps",
+        # choices=[
+        #     ## non-iid datasets
+        #     # training sets
+        #     "commoncatalog_cc_by",
+        #     "laion_aesthetics_v2_5p0",
+        #     # "laion_high_resolution",
+        #     # hold-out sets
+        #     "coco_2017_val",
+        #     "laion2b_multi_translated",
+        #     "nocaps",
 
-            ## sd 1.5 settings
-            # train-val setting1
-            "laion_aesthetics_v2_5p0_laion2b_multi_translated",
-            "laion2b_multi_translated_laion_aesthetics_v2_5p0",
+        #     ## sd 1.5 settings
+        #     # train-val setting1
+        #     "laion_aesthetics_v2_5p0_laion2b_multi_translated",
+        #     "laion2b_multi_translated_laion_aesthetics_v2_5p0",
 
-            # val-val setting1
-            "coco_2017_val_split1",
-            "coco_2017_val_split2",
-            # val-val setting2
-            "mixed_1",
-            "mixed_2",
+        #     # val-val setting1
+        #     "coco_2017_val_split1",
+        #     "coco_2017_val_split2",
+        #     # val-val setting2
+        #     "mixed_1",
+        #     "mixed_2",
 
-            ## CommonCanvas settings
-            # train-val setting1
-            "commoncatalog_cc_by_coco_2017_val",
-            "coco_2017_val_commoncatalog_cc_by",
-            # train-val setting2
-            "commoncatalog_cc_by_nocaps",
-            "nocaps_commoncatalog_cc_by",
+        #     ## CommonCanvas settings
+        #     # train-val setting1
+        #     "commoncatalog_cc_by_coco_2017_val",
+        #     "coco_2017_val_commoncatalog_cc_by",
+        #     # train-val setting2
+        #     "commoncatalog_cc_by_nocaps",
+        #     "nocaps_commoncatalog_cc_by",
 
-            # val-val setting1
-            "coco_2017_val_split1",
-            "coco_2017_val_split2",
-            # val-val setting2
-            "mixed_1",
-            "mixed_2",
+        #     # val-val setting1
+        #     "coco_2017_val_split1",
+        #     "coco_2017_val_split2",
+        #     # val-val setting2
+        #     "mixed_1",
+        #     "mixed_2",
 
-            # Kandinsky3 settings
-            # train-val setting1
-            "laion_aesthetics_v2_5p0_laion2b_multi_translated",
-            "laion2b_multi_translated_laion_aesthetics_v2_5p0",
-            # val-val setting1
-            "coco_2017_val_split1",
-            "coco_2017_val_split2",
-            # val-val setting2
-            "mixed_1",
-            "mixed_2",
-        ],
+        #     # Kandinsky3 settings
+        #     # train-val setting1
+        #     "laion_aesthetics_v2_5p0_laion2b_multi_translated",
+        #     "laion2b_multi_translated_laion_aesthetics_v2_5p0",
+        #     # val-val setting1
+        #     "coco_2017_val_split1",
+        #     "coco_2017_val_split2",
+        #     # val-val setting2
+        #     "mixed_1",
+        #     "mixed_2",
+        # ],
         nargs="+",
         help="Used datasets")
 

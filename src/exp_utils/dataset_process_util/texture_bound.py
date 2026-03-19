@@ -165,7 +165,7 @@ if __name__ == "__main__":
             DATASET2_NAME = value
             break
 
-    analysis_output_dir = os.path.join(STATISTIC_ROOT_PATH, "complex_analysis")
+    analysis_output_dir = os.path.join(STATISTIC_ROOT_PATH, "texture_bound")
     os.makedirs(analysis_output_dir, exist_ok=True)
     detailed_report = check_dataset_complexity(dataloader1, dataloader2, DATASET1_NAME, DATASET2_NAME, analysis_output_dir)
 

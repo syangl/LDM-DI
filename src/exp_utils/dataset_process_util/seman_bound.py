@@ -49,10 +49,10 @@ def test_distribution_similarity(features1, features2):
     # If the classifier accuracy is close to 0.5, the two datasets are similar (closed to IID)
     X4clf = np.vstack([X, Y])
     y4clf = np.hstack([np.ones(len(X)), np.zeros(len(Y))])
-    # Train a binary classifier using 20% of training data.
+    # Train a binary classifier using 30% of training data.
     # If the classifier can easily distinguish the two datasets through using a small part of data to train,
     # then the two datasets are not IID.
-    X4clf_train, X4clf_test, y4clf_train, y4clf_test = train_test_split(X4clf, y4clf, test_size=0.8, random_state=0, shuffle=True)
+    X4clf_train, X4clf_test, y4clf_train, y4clf_test = train_test_split(X4clf, y4clf, test_size=0.7, random_state=0, shuffle=True)
 
     X_train_tensor = torch.FloatTensor(X4clf_train)
     y_train_tensor = torch.FloatTensor(y4clf_train)
@@ -150,7 +150,7 @@ if __name__ == "__main__":
     features2 = extract_clip_features(dataset2)
 
     # do similarity test
-    test_sim_dir = os.path.join(STATISTIC_ROOT_PATH, "distri_sim_iid")
+    test_sim_dir = os.path.join(STATISTIC_ROOT_PATH, "semantic_bound")
     os.makedirs(test_sim_dir, exist_ok=True)
     result, classifier = test_distribution_similarity(features1, features2)
 

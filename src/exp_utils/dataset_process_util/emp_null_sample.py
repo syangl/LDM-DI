@@ -32,8 +32,8 @@ from exp_utils.load_util.load_data import create_dataset_dataloader
 #     k_txt = k_clip = int(np.sqrt(total_clusters))
 #     return max(k_txt, 10), max(k_clip, 10)
 
-TARGET_TOTAL_SAMPLES = 2000
-LOAD_NUM = 3000
+TARGET_TOTAL_SAMPLES = 1000
+LOAD_NUM = 1000
 # TEXTURE_CLUSTERS, CLIP_CLUSTERS = determine_k(LOAD_NUM*4)
 # print(f"TEXTURE_CLUSTERS: {TEXTURE_CLUSTERS}, CLIP_CLUSTERS: {CLIP_CLUSTERS}")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

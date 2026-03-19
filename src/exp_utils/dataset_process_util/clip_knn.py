@@ -197,7 +197,7 @@ if __name__ == "__main__":
                                                64,
                                                need_save=False)
     # dataset 2
-    dataset_config_2['load_num'] = 5000  # load full dataset to find overlap
+    dataset_config_2['load_num'] = 4500  # load full dataset to find overlap
     dataloader2, _ = create_dataset_dataloader(HOLD_OUT_OUTPUT_DIR,
                                                dataset_config_2,
                                                tokenizer,
