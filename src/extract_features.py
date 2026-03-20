@@ -173,8 +173,10 @@ def exec_mia(method, pipe, sus_dataloader, hold_out_dataloader, choice=''):
     return sus_scores, hold_out_scores
 
 def convert2tensor32(mia_scores):
-    if hasattr(mia_scores, 'cpu'): return mia_scores.cpu().float()
-    else: return torch.from_numpy(np.array(mia_scores, dtype=np.float32))
+    if hasattr(mia_scores, 'cpu'): 
+        return mia_scores.cpu().float()
+    else: 
+        return torch.from_numpy(np.array(mia_scores, dtype=np.float32))
 
 if __name__ == "__main__":
     FEATURE_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "offline_features")
@@ -190,7 +192,7 @@ if __name__ == "__main__":
     print("Loading pipeline for full dataset feature extraction...")
     pipe = txt2img_pipeline_select(base_model_id=attack_args.base_model_id, PIPE_TYPE=PIPE_TYPE)
     
-    # load the FULL dataset
+    # load the full dataset
     _, suspect_ds = create_dataset_dataloader(
         output_dir=TRAIN_OUTPUT_DIR, dataset_config=dataset_config_1,
         tokenizer=pipe.tokenizer, img_resolution=attack_args.generate_resolution, need_save=attack_args.is_visualize)

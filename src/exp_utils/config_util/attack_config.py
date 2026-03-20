@@ -17,7 +17,7 @@ def create_parser():
     pipeline_group.add_argument("--base_model_id",
                                 default="YOUR_MODEL_PATH",
                                 help="Diffusion Model path")
-    
+
     pipeline_group.add_argument("--local_dataset_path",
                                 default="YOUR_LOCAL_DATASET_PATH",
                                 help="Local dataset path, should contain all datasets used in this attack")
@@ -55,58 +55,58 @@ def create_parser():
     dataset_group.add_argument(
         "--used_datasets",
         default=[
-            "laion2b_multi_translated",
-            "laion_aesthetics_v2_5p0",
+            "commoncatalog_cc_by",
+            "coco_2017_val_commoncatalog_cc_by",
         ],
-        # choices=[
-        #     ## non-iid datasets
-        #     # training sets
-        #     "commoncatalog_cc_by",
-        #     "laion_aesthetics_v2_5p0",
-        #     # "laion_high_resolution",
-        #     # hold-out sets
-        #     "coco_2017_val",
-        #     "laion2b_multi_translated",
-        #     "nocaps",
+        choices=[
+            ## non-iid datasets
+            # training sets
+            "commoncatalog_cc_by",
+            "laion_aesthetics_v2_5p0",
+            # "laion_high_resolution",
+            # hold-out sets
+            "coco_2017_val",
+            "laion2b_multi_translated",
+            "nocaps",
 
-        #     ## sd 1.5 settings
-        #     # train-val setting1
-        #     "laion_aesthetics_v2_5p0_laion2b_multi_translated",
-        #     "laion2b_multi_translated_laion_aesthetics_v2_5p0",
+            ## sd 1.5 settings
+            # train-val setting1
+            "laion_aesthetics_v2_5p0",
+            "laion2b_multi_translated_laion_aesthetics_v2_5p0",
 
-        #     # val-val setting1
-        #     "coco_2017_val_split1",
-        #     "coco_2017_val_split2",
-        #     # val-val setting2
-        #     "mixed_1",
-        #     "mixed_2",
+            # # val-val setting1
+            # "coco_2017_val_split1",
+            # "coco_2017_val_split2",
+            # val-val setting2
+            "mixed_1",
+            "mixed_2",
 
-        #     ## CommonCanvas settings
-        #     # train-val setting1
-        #     "commoncatalog_cc_by_coco_2017_val",
-        #     "coco_2017_val_commoncatalog_cc_by",
-        #     # train-val setting2
-        #     "commoncatalog_cc_by_nocaps",
-        #     "nocaps_commoncatalog_cc_by",
+            ## CommonCanvas settings
+            # train-val setting1
+            "commoncatalog_cc_by",
+            "coco_2017_val_commoncatalog_cc_by",
+            # train-val setting2
+            # "commoncatalog_cc_by_nocaps",
+            "nocaps_commoncatalog_cc_by",
 
-        #     # val-val setting1
-        #     "coco_2017_val_split1",
-        #     "coco_2017_val_split2",
-        #     # val-val setting2
-        #     "mixed_1",
-        #     "mixed_2",
+            # # val-val setting1
+            # "coco_2017_val_split1",
+            # "coco_2017_val_split2",
+            # val-val setting2
+            "mixed_1",
+            "mixed_2",
 
-        #     # Kandinsky3 settings
-        #     # train-val setting1
-        #     "laion_aesthetics_v2_5p0_laion2b_multi_translated",
-        #     "laion2b_multi_translated_laion_aesthetics_v2_5p0",
-        #     # val-val setting1
-        #     "coco_2017_val_split1",
-        #     "coco_2017_val_split2",
-        #     # val-val setting2
-        #     "mixed_1",
-        #     "mixed_2",
-        # ],
+            # Kandinsky3 settings
+            # train-val setting1
+            # "laion_aesthetics_v2_5p0_laion2b_multi_translated",
+            "laion2b_multi_translated_laion_aesthetics_v2_5p0",
+            # # val-val setting1
+            # "coco_2017_val_split1",
+            # "coco_2017_val_split2",
+            # val-val setting2
+            "mixed_1",
+            "mixed_2",
+        ],
         nargs="+",
         help="Used datasets")
 

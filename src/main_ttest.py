@@ -32,16 +32,16 @@ def handle_outliers(features, ratio=0.025):
 def process_features(sus_feats_subset, hold_out_feats_subset):
     all_features = torch.cat((sus_feats_subset, hold_out_feats_subset), dim=0)
     all_features_norm = feature_norm(all_features)
-    
+
     sus_features_norm = all_features_norm[:sus_feats_subset.shape[0], :]
     hold_out_features_norm = all_features_norm[sus_feats_subset.shape[0]:, :]
-    
+
     sus_features_norm = handle_outliers(sus_features_norm)
     hold_out_features_norm = handle_outliers(hold_out_features_norm)
-    
+
     sus_label = torch.ones(sus_features_norm.shape[0]).unsqueeze(1)
     hold_out_label = torch.zeros(hold_out_features_norm.shape[0]).unsqueeze(1)
-    
+
     return sus_features_norm, sus_label, hold_out_features_norm, hold_out_label
 
 def train_model(sus_features, sus_label, hold_out_features, hold_out_label, test_i, MODEL_OUTPUT_DIR):
@@ -71,7 +71,7 @@ def train_model(sus_features, sus_label, hold_out_features, hold_out_label, test
             indices = torch.randperm(total_num)
             tmp_features = all_features[indices]
             tmp_labels = all_labels[indices]
-            
+
             optimizer.zero_grad()
             outputs = model(tmp_features)
             loss = criterion(outputs, tmp_labels)
@@ -100,6 +100,10 @@ def predict(model, features):
     model.eval()
     return model(features).detach()
 
+def t_test(B_sus, B_hold_out):
+    t, _ = ttest_ind(B_sus, B_hold_out, equal_var=False, alternative='greater')
+    return t.item()
+
 def t_test_with_effect(B_sus, B_hold_out):
     _, p = ttest_ind(B_sus, B_hold_out, equal_var=False, alternative='greater')
     neg_log_p = -np.log(p) if p > 0 else -np.inf
@@ -113,30 +117,13 @@ def t_test_with_effect(B_sus, B_hold_out):
 
     return p.item(), neg_log_p.item(), d.item()
 
-def aggregate_p_values(TTest_OUTPUT_DIR, SPLIT_TIMES, SPLIT_DS_LEN):
-    p_values, d_values, n_values = [], [], []
 
-    for test_i in range(SPLIT_TIMES):
-        with open(os.path.join(TTest_OUTPUT_DIR, f"p_values_{test_i}.json"), "r") as f:
-            results = json.load(f)
-            p_values.append(results.get('p_value', 1.0))
-            d_values.append(results['effect_size'])
-            n_values.append(2 * SPLIT_DS_LEN)
-
-    _, p_combined = combine_pvalues(p_values, method='fisher')
-    combined_log_p = np.log(p_combined) if p_combined > 0 else -np.inf
-
-    d_values = np.array(d_values, dtype=float)
-    n_values = np.array(n_values, dtype=float)
-    d_combined = np.sum(d_values * n_values) / np.sum(n_values)
-
-    return p_combined, combined_log_p, d_combined
 
 if __name__ == "__main__":
     # parameters for repeated tests
     SPLIT_TIMES = 20 # number of repeated tests with different random splits
     SPLIT_DS_LEN = attack_args.dataset_total_num // 2
-    
+
     MODEL_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "model")
     os.makedirs(MODEL_OUTPUT_DIR, exist_ok=True)
     TTest_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
@@ -146,24 +133,20 @@ if __name__ == "__main__":
     # load full extracted features
     sus_feat_path = os.path.join(FEATURE_OUTPUT_DIR, "sus_features_full.pt")
     hold_feat_path = os.path.join(FEATURE_OUTPUT_DIR, "hold_out_features_full.pt")
-    
+
     if not (os.path.exists(sus_feat_path) and os.path.exists(hold_feat_path)):
         print("Offline features not found. Please run step1_extract_features.py first!")
         sys.exit(1)
-        
+
     print("Loading offline features into memory...")
     sus_features_full = torch.load(sus_feat_path)
     hold_out_features_full = torch.load(hold_feat_path)
     total_ds_len = attack_args.dataset_total_num
 
+    ttest_file_path = os.path.join(TTest_OUTPUT_DIR, f"ttest_results.json")
     for test_i in range(SPLIT_TIMES):
         preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"preds_{test_i}.json")
-        p_values_file_path = os.path.join(TTest_OUTPUT_DIR, f"p_values_{test_i}.json")
 
-        if os.path.exists(preds_file_path) and os.path.exists(p_values_file_path):
-            print(f"Test {test_i} already finished. Skipping.")
-            continue
-            
         print(f"\n--- Start Testing {test_i} ---")
         time_start = time.time()
 
@@ -180,15 +163,15 @@ if __name__ == "__main__":
 
         # train model on A
         model = train_model(
-            sus_features_A[0], sus_features_A[1], 
-            sus_features_A[2], sus_features_A[3], 
+            sus_features_A[0], sus_features_A[1],
+            sus_features_A[2], sus_features_A[3],
             test_i, MODEL_OUTPUT_DIR
         )
 
         # predict on B
         features_B = torch.cat((sus_features_B[0], sus_features_B[2]), dim=0)
         label_B = torch.cat((sus_features_B[1], sus_features_B[3]), dim=0)
-        
+
         preds = predict(model, features_B)
         B_sus = preds[label_B == 1].cpu().numpy()
         B_hold_out = preds[label_B == 0].cpu().numpy()
@@ -201,26 +184,13 @@ if __name__ == "__main__":
                 "B_hold_out_labels": sus_features_B[3].cpu().numpy().tolist()
             }, f, indent=4)
 
-        # calculate significance
-        p_value, neg_log_p_value, effect_size = t_test_with_effect(B_sus, B_hold_out)
-        with open(p_values_file_path, "w", encoding='utf-8') as f:
+        # calculate welch's t-statistic for all tests
+        t_statistic = t_test(B_sus, B_hold_out)
+        print(f"Result {test_i}: t={t_statistic:.4f}")
+        print(f"Time for experiment {test_i}: {time.time() - time_start:.2f} seconds")
+        with open(ttest_file_path, "a", encoding='utf-8') as f:
             json.dump({
-                "p_value": p_value, 
-                "log_p_value": neg_log_p_value,  
-                "effect_size": effect_size
+                "test_i": test_i,
+                "t_statistic": t_statistic,
             }, f, indent=4)
 
-        print(f"Result {test_i}: log_p={neg_log_p_value:.4f}, d={effect_size:.4f}")
-        print(f"Time for experiment {test_i}: {time.time() - time_start:.2f} seconds")
-
-    # aggregate p-values across all tests
-    p_combined, combined_log_p, d_combined = aggregate_p_values(TTest_OUTPUT_DIR, SPLIT_TIMES, SPLIT_DS_LEN)
-
-    with open(os.path.join(TTest_OUTPUT_DIR, "p_combined.json"), "w", encoding='utf-8') as f:
-        json.dump({
-            "p_combined": p_combined,
-            "log_p_combined": combined_log_p,
-            "effect_size_combined": d_combined,
-        }, f, indent=4)
-        
-    print(f"\n[Final Results] p_combined: {p_combined:.4e} | log_p_combined: {combined_log_p:.4f} | effect_size_combined: {d_combined:.4f}")
