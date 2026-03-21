@@ -34,10 +34,11 @@ from exp_utils.load_util.load_data import create_dataset_dataloader
 
 TARGET_TOTAL_SAMPLES = 1000
 LOAD_NUM = 3000
+NUM_PAIRS = 100
 # TEXTURE_CLUSTERS, CLIP_CLUSTERS = determine_k(LOAD_NUM*4)
 # print(f"TEXTURE_CLUSTERS: {TEXTURE_CLUSTERS}, CLIP_CLUSTERS: {CLIP_CLUSTERS}")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-OUTPUT_ROOT = os.path.join(current_dir, "mixed_datasets")
+OUTPUT_ROOT = os.path.join(current_dir, "mixed_datasets_metadata")
 
 
 
@@ -188,7 +189,7 @@ def classifier_test(df_a, df_b):
         preds = model(X_test_t).squeeze()
         cls_preds = (preds > 0.5).float()
         acc = (cls_preds == y_test_t).float().mean().item()
-    print(f"Classifier Accuracy: {acc:.4f} (Target: 0.4 ~ 0.6)")
+    print(f"Classifier Accuracy: {acc:.4f}")
 
 
 def verify_datasets(df_a, df_b):
@@ -206,6 +207,18 @@ def verify_datasets(df_a, df_b):
         total_diff += diff
         print(f"{src:<15} | {pa:.2%} | {pb:.2%} | {diff:.2%}")
     return True
+
+
+def save_metadata_only(df, output_file):
+    os.makedirs(os.path.dirname(output_file), exist_ok=True)
+    metadata_list = []
+    for _, row in df.iterrows():
+        metadata_list.append({
+            'source_dataset': row['source_dataset'],
+            'original_index': int(row['original_index'])
+        })
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(metadata_list, f, indent=4)
 
 
 def save_datasets(df, folder_name, dataset_configs):
@@ -309,14 +322,20 @@ if __name__ == "__main__":
     clip_model.eval()
 
     prepared_df = prepare_datasets(dataloaders, clip_model=clip_model)
-    mixed_df_1, mixed_df_2 = split_datasets(prepared_df)
 
-    is_valid = verify_datasets(mixed_df_1, mixed_df_2)
+    os.makedirs(OUTPUT_ROOT, exist_ok=True)
 
-    if is_valid:
-        print("Verification Done.")
-        os.makedirs(OUTPUT_ROOT, exist_ok=True)
-        save_datasets(mixed_df_1, "mixed_1", configs)
-        save_datasets(mixed_df_2, "mixed_2", configs)
-    else:
-        print("Verification Failed. The datasets are not similar enough.")
+    for pair_i in tqdm(range(NUM_PAIRS), desc="Generating base12 pairs"):
+        print(f"\n--- Generating pair {pair_i + 1}/{NUM_PAIRS} ---")
+        mixed_df_1, mixed_df_2 = split_datasets(prepared_df)
+        
+        base1_file = os.path.join(OUTPUT_ROOT, f"pair_{pair_i}_base1.json")
+        base2_file = os.path.join(OUTPUT_ROOT, f"pair_{pair_i}_base2.json")
+        
+        save_metadata_only(mixed_df_1, base1_file)
+        save_metadata_only(mixed_df_2, base2_file)
+        
+        print(f"Saved pair {pair_i}: {base1_file}, {base2_file}")
+    
+    print(f"\nSuccessfully generated {NUM_PAIRS} base12 pairs in {OUTPUT_ROOT}")
+
