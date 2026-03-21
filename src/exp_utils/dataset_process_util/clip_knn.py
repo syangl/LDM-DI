@@ -11,7 +11,7 @@ project_root = os.path.dirname(os.path.dirname(current_dir))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 from exp_utils.load_util.load_data import create_dataset_dataloader
-from exp_utils.config_util.attack_config import attack_args, TRAIN_OUTPUT_DIR, dataset_config_1, HOLD_OUT_OUTPUT_DIR, dataset_config_2
+from exp_utils.config_util.attack_config import attack_args, TRAIN_OUTPUT_DIR, dataset_config_1, HOLD_OUT_OUTPUT_DIR, dataset_config_2, OUTPUT_ROOT_PATH
 import json
 import clip
 from transformers import CLIPTokenizer
@@ -94,26 +94,39 @@ class DistributionOverlapFinder:
         return overlap_dataset2
 
     def save_overlap_images(self,
-                            overlap_dataset_indices,
+                            overlap_dataset_with_info,
                             dataset1_name,
-                            dataset2_name,
-                            dataset_load_path,
-                            sub_folder,
                             output_dir="overlap_results",
                             ):
-        save_dir = os.path.join(current_dir, output_dir, f"{dataset2_name}_{dataset1_name}", f"data/{sub_folder}")
-        os.makedirs(save_dir, exist_ok=True)
-        meta_path = os.path.join(save_dir.replace(f"data/{sub_folder}", ""), "metadata")
-        os.makedirs(meta_path, exist_ok=True)
-        src_meta_file = dataset_load_path.replace(f'data/{sub_folder}', f'metadata/meta_{dataset2_name}.jsonl')
+        from collections import defaultdict
+        grouped_data = defaultdict(list)
+        
+        for index, img_tensor, info in overlap_dataset_with_info:
+            dataset2_name = info['dataset_name']
+            dataset_load_path = info['load_path']
+            sub_folder = info['split']
+            grouped_data[(dataset2_name, dataset_load_path, sub_folder)].append((index, img_tensor, info))
+        
+        all_overlap_indices = []
+        for (dataset2_name, dataset_load_path, sub_folder), items in grouped_data.items():
+            save_dir = os.path.join(current_dir, output_dir, f"mixed_{dataset1_name}", f"data/{sub_folder}")
+            os.makedirs(save_dir, exist_ok=True)
+            meta_path = os.path.join(save_dir.replace(f"data/{sub_folder}", ""), "metadata")
+            os.makedirs(meta_path, exist_ok=True)
+            src_meta_file = dataset_load_path.replace(f'data/{sub_folder}', f'metadata/meta_{dataset2_name}.jsonl')
 
-        with open(os.path.join(meta_path, f"meta_{dataset2_name}_{dataset1_name}.jsonl"), 'w',encoding='utf-8') as dst_f:
+            src_metadata = {}
             with open(src_meta_file, 'r', encoding='utf-8') as src_f:
-                src_metadata = {}
                 for line in src_f:
                     line = json.loads(line)
                     src_metadata[line['index']] = line
-                for index in overlap_dataset_indices:
+            
+            meta_output_path = os.path.join(meta_path, f"meta_mixed_{dataset1_name}.jsonl")
+            mode = 'w' if not os.path.exists(meta_output_path) else 'a'
+            
+            with open(meta_output_path, mode, encoding='utf-8') as dst_f:
+                for index, img_tensor, info in items:
+                    all_overlap_indices.append(index)
                     # save images
                     img_pil = Image.open(
                         os.path.join(dataset_load_path, f"{index}.jpg"))
@@ -124,14 +137,15 @@ class DistributionOverlapFinder:
                     dst_f.write(json.dumps(metadata) + '\n')
 
 
-def find_distribution_overlap(dataloader1, dataloader2, overlap_finder, target_num):
+def find_distribution_overlap(dataloader1, dataloaders2, overlap_finder, target_num):
     """
-    Find examples in dataloader2 with maximum distribution overlap with dataloader1.
+    Find examples in mixed dataloaders2 with maximum distribution overlap with dataloader1.
     """
     dataset1 = []
     dataset2 = []
+    dataset2_info = []
 
-    # Process dataloaders
+    # process dataloader1
     for batch in tqdm(dataloader1, desc="Loading dataset 1"):
         images = batch['image']
         indexes = batch['index']
@@ -139,47 +153,57 @@ def find_distribution_overlap(dataloader1, dataloader2, overlap_finder, target_n
             img_tensor = images[i]
             dataset1.append((indexes[i], img_tensor))
 
-    for batch in tqdm(dataloader2, desc="Loading dataset 2"):
-        images = batch['image']
-        indexes = batch['index']
-        for i in range(len(images)):
-            img_tensor = images[i]
-            dataset2.append((indexes[i], img_tensor))
+    # process all dataloaders2 and mix them
+    for dataset_idx, (dataloader2, dataset2_name, dataset2_load_path, dataset2_split) in enumerate(dataloaders2):
+        for batch in tqdm(dataloader2, desc=f"Loading dataset 2 [{dataset_idx+1}/{len(dataloaders2)}] - {dataset2_name}"):
+            images = batch['image']
+            indexes = batch['index']
+            for i in range(len(images)):
+                img_tensor = images[i]
+                global_idx = f"{dataset_idx}_{indexes[i]}"
+                dataset2.append((global_idx, img_tensor))
+                dataset2_info.append({
+                    'dataset_idx': dataset_idx,
+                    'local_index': indexes[i],
+                    'dataset_name': dataset2_name,
+                    'load_path': dataset2_load_path,
+                    'split': dataset2_split
+                })
 
     print(f"Loaded {len(dataset1)} images for query dataset")
-    print(f"Loaded {len(dataset2)} images for search dataset")
+    print(f"Loaded {len(dataset2)} images for mixed search dataset")
 
     overlap_dataset2 = overlap_finder.find_max_overlap_examples(dataset1, dataset2, target_num=target_num)
 
-    print(f"Found {len(overlap_dataset2)} overlap examples in search dataset")
+    # map back to original dataset info
+    overlap_dataset2_with_info = []
+    for global_idx, img_tensor in overlap_dataset2:
+        dataset_idx_str, local_idx_str = global_idx.split('_', 1)
+        dataset_idx = int(dataset_idx_str)
+        local_idx = local_idx_str
+        info = dataset2_info[dataset2.index((global_idx, img_tensor))]
+        overlap_dataset2_with_info.append((local_idx, img_tensor, info))
 
-    return overlap_dataset2
+    print(f"Found {len(overlap_dataset2_with_info)} overlap examples in mixed search dataset")
+
+    return overlap_dataset2_with_info
 
 
 def find_overlap_main(
     dataloader1,
-    dataloader2,
+    dataloaders2,
     dataset1_name,
-    dataset2_name,
-    dataset2_load_path,
     target_num,
-    split,
     output_dir="overlap_results",
 ):
-    # Find overlapping examples
+    # find overlapping examples
     overlap_finder = DistributionOverlapFinder()
-    overlap_holdout = find_distribution_overlap(dataloader1, dataloader2, overlap_finder, target_num)
-
-    overlap_holdout_indices = [idx for idx, _ in overlap_holdout]
+    overlap_holdout = find_distribution_overlap(dataloader1, dataloaders2, overlap_finder, target_num)
 
     overlap_finder.save_overlap_images(
-        overlap_dataset_indices=overlap_holdout_indices,
+        overlap_dataset_with_info=overlap_holdout,
         dataset1_name=dataset1_name,
-        dataset2_name=dataset2_name,
-        dataset_load_path=dataset2_load_path,
-        sub_folder=split,
         output_dir=output_dir,
-
     )
 
     print("Overlap images saved")
@@ -187,7 +211,7 @@ def find_overlap_main(
 
 if __name__ == "__main__":
     TARGET_NUM = attack_args.dataset_total_num
-    tokenizer = tokenizer = CLIPTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"))
+    tokenizer = CLIPTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"))
 
     # dataset 1
     dataloader1, _ = create_dataset_dataloader(TRAIN_OUTPUT_DIR,
@@ -196,21 +220,47 @@ if __name__ == "__main__":
                                                224, 
                                                64,
                                                need_save=False)
-    # dataset 2
-    dataset_config_2['load_num'] = 3993  # load full dataset to find overlap
-    dataloader2, _ = create_dataset_dataloader(HOLD_OUT_OUTPUT_DIR,
-                                               dataset_config_2,
-                                               tokenizer,
-                                               224,
-                                               64,
-                                               need_save=False)
+    
+    # given hold-out source data Q1, Q2, ...
+    dataset_configs_2 = [
+        # Q1
+        {
+            "dataset": "coco_2017_val", 
+            "load_path": f"{attack_args.local_dataset_path}/coco_2017_val/data/val",
+            "load_num": 5000,  
+            "split": "val",
+        },
+        # Q2
+        {
+            "dataset": "nocaps",  
+            "load_path": f"{attack_args.local_dataset_path}/nocaps/data/val",
+            "load_num": 4500,
+            "split": "val",
+        },
+        # Q3
+        {
+            "dataset": "laion2b_multi_translated",  
+            "load_path": f"{attack_args.local_dataset_path}/laion2b_multi_translated/data/val",
+            "load_num": 3993,
+            "split": "val",
+        },
+    ]
+    
+    # load all source datasets
+    dataloaders2 = []
+    for config in dataset_configs_2:
+        temp_output_dir = f"{OUTPUT_ROOT_PATH}/output/{config['dataset']}/{attack_args.model_name}/"
+        dataloader, _ = create_dataset_dataloader(temp_output_dir,
+                                                   config,
+                                                   tokenizer,
+                                                   224,
+                                                   64,
+                                                   need_save=False)
+        dataloaders2.append((dataloader, config['dataset'], config['load_path'], config['split']))
 
-    # find TARGET_NUM images in dataset 2 that are most similar to dataset 1
+    # get TARGET_NUM images from Q = {Q1, Q2, Q3}
     find_overlap_main(dataloader1=dataloader1,
-                      dataloader2=dataloader2,
+                      dataloaders2=dataloaders2,
                       dataset1_name=dataset_config_1['dataset'],
-                      dataset2_name=dataset_config_2['dataset'],
-                      dataset2_load_path=dataset_config_2['load_path'],
                       target_num=TARGET_NUM,
-                      split=dataset_config_2['split'],
                       )

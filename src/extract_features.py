@@ -194,8 +194,11 @@ if __name__ == "__main__":
     
     # load the full dataset
     _, suspect_ds = create_dataset_dataloader(
-        output_dir=TRAIN_OUTPUT_DIR, dataset_config=dataset_config_1,
-        tokenizer=pipe.tokenizer, img_resolution=attack_args.generate_resolution, need_save=attack_args.is_visualize)
+        output_dir=TRAIN_OUTPUT_DIR, 
+        dataset_config=dataset_config_1,
+        tokenizer=pipe.tokenizer, 
+        img_resolution=attack_args.generate_resolution, 
+        need_save=attack_args.is_visualize)
     _, hold_out_ds = create_dataset_dataloader(
         output_dir=HOLD_OUT_OUTPUT_DIR, dataset_config=dataset_config_2,
         tokenizer=pipe.tokenizer, img_resolution=attack_args.generate_resolution, need_save=attack_args.is_visualize)
