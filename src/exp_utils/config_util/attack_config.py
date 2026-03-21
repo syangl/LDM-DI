@@ -70,7 +70,8 @@ def create_parser():
             "nocaps",
             
             # hold-out sets
-            "D_hold_out",
+            "D_hold_out_commoncatalog_cc_by",
+            "D_hold_out_laion_aesthetics_v2_5p0",
             "D_base_1",
             "D_base_2",
         ],

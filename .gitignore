@@ -1,7 +1,8 @@
 # Custom
 .idea/
 .vscode/
-src/exp_data/
+./src/exp_data/
+./exp_data/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
