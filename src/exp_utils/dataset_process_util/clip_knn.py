@@ -246,21 +246,21 @@ if __name__ == "__main__":
         {
             "dataset": "coco_2017_val", 
             "load_path": f"{attack_args.local_dataset_path}/coco_2017_val/data/val",
-            "load_num": 5000,  
+            "load_num": 3000,  # equal sub source proportion to each Q_i
             "split": "val",
         },
         # Q2
         {
             "dataset": "nocaps",  
             "load_path": f"{attack_args.local_dataset_path}/nocaps/data/val",
-            "load_num": 4500,
+            "load_num": 3000,
             "split": "val",
         },
         # Q3
         {
             "dataset": "laion2b_multi_translated",  
             "load_path": f"{attack_args.local_dataset_path}/laion2b_multi_translated/data/val",
-            "load_num": 3993,
+            "load_num": 3000,
             "split": "val",
         },
     ]

@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.decomposition import PCA
 from transformers import CLIPTokenizer
-import matplotlib.pyplot as plt
 import clip
 import torch
 from tqdm import tqdm
@@ -18,7 +17,6 @@ from exp_utils.load_util.load_data import create_dataset_dataloader
 from exp_utils.config_util.attack_config import attack_args, dataset_plot_names, STATISTIC_ROOT_PATH, TRAIN_OUTPUT_DIR, dataset_config_1, HOLD_OUT_OUTPUT_DIR, dataset_config_2
 
 
-plt.rcParams['font.family'] = 'Times New Roman'
 
 def extract_clip_features(image_tensors, batch_size=32):
     model, _ = clip.load("ViT-B/32", device='cuda')
@@ -49,10 +47,10 @@ def test_distribution_similarity(features1, features2):
     # If the classifier accuracy is close to 0.5, the two datasets are similar (closed to IID)
     X4clf = np.vstack([X, Y])
     y4clf = np.hstack([np.ones(len(X)), np.zeros(len(Y))])
-    # Train a binary classifier using 25% of training data.
+    # Train a binary classifier using 20% of training data.
     # If the classifier can easily distinguish the two datasets through using a small part of data to train,
     # then the two datasets are not IID.
-    X4clf_train, X4clf_test, y4clf_train, y4clf_test = train_test_split(X4clf, y4clf, test_size=0.75, random_state=0, shuffle=True)
+    X4clf_train, X4clf_test, y4clf_train, y4clf_test = train_test_split(X4clf, y4clf, test_size=0.8, random_state=0, shuffle=True)
 
     X_train_tensor = torch.FloatTensor(X4clf_train)
     y_train_tensor = torch.FloatTensor(y4clf_train)

@@ -53,70 +53,41 @@ class ImageDS(Dataset):
         if ret == None:
             ret = ""
         return ret
-    def _load_laion_dataset(self, DATASET_CONFIG):
+    def _load_dataset(self, DATASET_CONFIG):
         load_path = DATASET_CONFIG["load_path"]
         ds = dict()
-        # load all images path
         image_name_list = os.listdir(load_path)
-        # metadata path
-        caption_path = os.path.join(load_path.replace(f"data/{DATASET_CONFIG['split']}", ""), f"metadata/meta_{DATASET_CONFIG['dataset']}.jsonl")
-        with open(caption_path, 'r', encoding='utf-8') as meta_f:
-            metadata = [json.loads(line.strip()) for line in meta_f]
-
-        # only load load_num images
-        assert DATASET_CONFIG['load_num'] <= len(image_name_list)
-
-        # # sqeuential load for preMI
-        # image_name_list = image_name_list[DATASET_CONFIG['start_index']: DATASET_CONFIG['start_index'] + DATASET_CONFIG['load_num']]
-        # random load
-        global_random.seed(attack_args.global_seed)
-        image_name_list = global_random.sample(image_name_list, DATASET_CONFIG['load_num'])
-        for i, image_name in tqdm(enumerate(image_name_list), desc="loading dataset...", total=len(image_name_list)):
-            image_path = os.path.join(load_path, image_name)
-            index = int(image_name.split(".")[0])
-            # get caption from metadata.jsonl
-            caption = self._get_caption_by_index(metadata, index)
-            ds[str(index)] = [caption, image_path]
-        print(f"Load {len(ds)} images from {load_path}.")
-        print()
-        return ds
-
-    def _load_coco_dataset(self, DATASET_CONFIG):
-        load_path = DATASET_CONFIG["load_path"]
-        ds = dict()
-        # load all images path
-        image_name_list = os.listdir(load_path)
-        # metadata path
         caption_path = os.path.join(
             load_path.replace(f"data/{DATASET_CONFIG['split']}", ""), f"metadata/meta_{DATASET_CONFIG['dataset']}.jsonl")
-
+        
         with open(caption_path, 'r', encoding='utf-8') as meta_f:
             metadata = [json.loads(line.strip()) for line in meta_f]
 
-        # only load load_num images
         assert DATASET_CONFIG['load_num'] <= len(image_name_list)
-        # random load
+        
         global_random.seed(attack_args.global_seed)
         image_name_list = global_random.sample(image_name_list, DATASET_CONFIG['load_num'])
+        
         for i, image_name in tqdm(enumerate(image_name_list), desc="loading dataset...", total=len(image_name_list)):
             image_path = os.path.join(load_path, image_name)
             index = int(image_name.split(".")[0])
-            # get caption from metadata.jsonl
             caption = self._get_caption_by_index(metadata, index)
-            # caption is a list, get the longest one
+            
             if isinstance(caption, list):
                 caption = [c for c in caption if c is not None]
-                caption = max(caption, key=len)
+                if caption:
+                    caption = max(caption, key=len)
+                else:
+                    caption = ""
+            
             ds[str(index)] = [caption, image_path]
+        
         print(f"Load {len(ds)} images from {load_path}.")
         print()
         return ds
 
     def _load_ds(self, DATASET_CONFIG):
-        if DATASET_CONFIG['dataset'].startswith("coco_"):
-            return self._load_coco_dataset(DATASET_CONFIG)
-        else:
-            return self._load_laion_dataset(DATASET_CONFIG)
+        return self._load_dataset(DATASET_CONFIG)
 
 
     def _prepare_data(self, tokenizer):
