@@ -33,7 +33,7 @@ from exp_utils.load_util.load_data import create_dataset_dataloader
 #     return max(k_txt, 10), max(k_clip, 10)
 
 TARGET_TOTAL_SAMPLES = 1000
-LOAD_NUM = 1000
+LOAD_NUM = 3000
 # TEXTURE_CLUSTERS, CLIP_CLUSTERS = determine_k(LOAD_NUM*4)
 # print(f"TEXTURE_CLUSTERS: {TEXTURE_CLUSTERS}, CLIP_CLUSTERS: {CLIP_CLUSTERS}")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -115,8 +115,8 @@ def split_datasets(df):
 
     source_map = {
         'coco2017': 0.0,
-        'laion_multi': 1.0,
-        'nocaps': 2.0
+        'nocaps': 1.0,
+        'laion_multi': 2.0
     }
     df['source_val'] = df['source_dataset'].map(source_map).fillna(1.5)
 
@@ -276,20 +276,19 @@ if __name__ == "__main__":
     configs = {
         'coco2017': {
             "dataset": "coco_2017_val",
-            "load_path": "YOUR_LOCAL_DATASET/coco_2017_val/data/val",
+            "load_path": f"{attack_args.local_dataset_path}/coco_2017_val/data/val",
             "load_num": LOAD_NUM,
             "split": "val",
         },
         'nocaps': {
             "dataset": "nocaps",
-            "load_path": "YOUR_LOCAL_DATASET/nocaps/data/val",
+            "load_path": f"{attack_args.local_dataset_path}/nocaps/data/val",
             "load_num": LOAD_NUM,
             "split": "val",
         },
         'laion_multi': {
             "dataset": "laion2b_multi_translated",
-            "load_path":
-            "YOUR_LOCAL_DATASET/laion2b_multi_translated/data/val",
+            "load_path": f"{attack_args.local_dataset_path}/laion2b_multi_translated/data/val",
             "load_num": LOAD_NUM,
             "split": "val",
         }
