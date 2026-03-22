@@ -20,7 +20,7 @@ def save_split_metadata_only(
     output_dir="split_metadata"
 ):
     """
-    Save only metadata for split datasets (no image copying)
+    Save only metadata for split datasets
     """
     print(f"Saving {split_name} metadata with {len(dataset_split)} samples...")
 

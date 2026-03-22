@@ -88,62 +88,26 @@ class DistributionOverlapFinder:
         
         return scores, sample_infos
 
-    def save_overlap_images(self,
-                            overlap_dataset_with_info,
-                            D_hold_out_name,
-                            output_dir="overlap_results",
-                            ):
-        save_dir = os.path.join(current_dir, output_dir, f"{D_hold_out_name}", "data/val")
+    def save_metadata_only(self,
+                           overlap_dataset_with_info,
+                           D_hold_out_name,
+                           output_dir="overlap_results",
+                           ):
+        save_dir = os.path.join(current_dir, output_dir)
         os.makedirs(save_dir, exist_ok=True)
-        meta_path = os.path.join(current_dir, output_dir, f"{D_hold_out_name}", "metadata")
-        os.makedirs(meta_path, exist_ok=True)
         
-        # collect metadata by dataset
-        from collections import defaultdict
-        src_metadata_by_dataset = defaultdict(dict)
+        metadata_list = []
+        for new_index, (local_index, _, info) in enumerate(overlap_dataset_with_info):
+            metadata_list.append({
+                'source_dataset': info['dataset_name'],
+                'original_index': int(local_index)
+            })
         
-        # collect required datasets
-        required_datasets = set()
-        for _, _, info in overlap_dataset_with_info:
-            dataset2_name = info['dataset_name']
-            dataset_load_path = info['load_path']
-            sub_folder = info['split']
-            required_datasets.add((dataset2_name, dataset_load_path, sub_folder))
+        output_file = os.path.join(save_dir, f"{D_hold_out_name}.json")
+        with open(output_file, 'w', encoding='utf-8') as f:
+            json.dump(metadata_list, f, indent=4)
         
-        # load required metadata
-        for dataset2_name, dataset_load_path, sub_folder in required_datasets:
-            src_meta_file = dataset_load_path.replace(f'data/{sub_folder}', f'metadata/meta_{dataset2_name}.jsonl')
-            with open(src_meta_file, 'r', encoding='utf-8') as src_f:
-                for line in src_f:
-                    line = json.loads(line)
-                    src_metadata_by_dataset[(dataset2_name, dataset_load_path, sub_folder)][line['index']] = line
-        
-        # save images and generate new metadata
-        meta_output_path = os.path.join(meta_path, f"meta_{D_hold_out_name}.jsonl")
-        
-        with open(meta_output_path, 'w', encoding='utf-8') as dst_f:
-            for new_index, (local_index, _, info) in enumerate(overlap_dataset_with_info):
-                dataset2_name = info['dataset_name']
-                dataset_load_path = info['load_path']
-                sub_folder = info['split']
-                
-                # load image from original dataset and save with new index
-                img_pil = Image.open(
-                    os.path.join(dataset_load_path, f"{local_index}.jpg"))
-                filepath = os.path.join(save_dir, f"{new_index}.jpg")
-                img_pil.save(filepath)
-                
-                # generate new metadata
-                src_metadata = src_metadata_by_dataset[(dataset2_name, dataset_load_path, sub_folder)][int(local_index)]
-                new_metadata = src_metadata.copy()
-                new_metadata['index'] = new_index
-                new_metadata['original_dataset'] = dataset2_name
-                new_metadata['original_index'] = int(local_index)
-                
-                dst_f.write(json.dumps(new_metadata) + '\n')
-        
-        print(f"Saved {len(overlap_dataset_with_info)} images with unified indices to {save_dir}")
-        print(f"New metadata saved to {meta_output_path}")
+        print(f"Saved {len(metadata_list)} samples metadata to {output_file}")
 
 
 def find_distribution_overlap(dataloader1, dataloaders2, overlap_finder, target_num):
@@ -219,13 +183,13 @@ def find_overlap_main(
     overlap_finder = DistributionOverlapFinder()
     overlap_holdout = find_distribution_overlap(dataloader1, dataloaders2, overlap_finder, target_num)
 
-    overlap_finder.save_overlap_images(
+    overlap_finder.save_metadata_only(
         overlap_dataset_with_info=overlap_holdout,
         D_hold_out_name=D_hold_out_name,
         output_dir=output_dir,
     )
 
-    print("Overlap images saved")
+    print("Overlap metadata saved")
 
 
 if __name__ == "__main__":
