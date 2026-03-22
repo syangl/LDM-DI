@@ -4,6 +4,7 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 from exp_utils.config_util.attack_config import attack_args, OUTPUT_ROOT_PATH
+from exp_utils.dataset_process_util.metadata_manager import create_loader
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -12,10 +13,12 @@ import json
 import matplotlib.pyplot as plt
 import time
 
+
 def feature_norm(features):
     features_mean = features.mean(dim=0, keepdim=True)
     features_std = features.std(dim=0, keepdim=True)
     return (features - features_mean) / (features_std + 1e-8)
+
 
 def handle_outliers(features, ratio=0.025):
     X = features.clone()
@@ -28,6 +31,7 @@ def handle_outliers(features, ratio=0.025):
         col = torch.where(mask, mean_val, col)
         X[:, j] = col
     return X
+
 
 def process_features(sus_feats_subset, hold_out_feats_subset):
     all_features = torch.cat((sus_feats_subset, hold_out_feats_subset), dim=0)
@@ -43,6 +47,7 @@ def process_features(sus_feats_subset, hold_out_feats_subset):
     hold_out_label = torch.zeros(hold_out_features_norm.shape[0]).unsqueeze(1)
 
     return sus_features_norm, sus_label, hold_out_features_norm, hold_out_label
+
 
 def train_model(sus_features, sus_label, hold_out_features, hold_out_label, test_i, MODEL_OUTPUT_DIR):
     model = torch.nn.Sequential(
@@ -96,13 +101,16 @@ def train_model(sus_features, sus_label, hold_out_features, hold_out_label, test
     torch.save(model.state_dict(), save_file)
     return model
 
+
 def predict(model, features):
     model.eval()
     return model(features).detach()
 
+
 def t_test(B_sus, B_hold_out):
     t, _ = ttest_ind(B_sus, B_hold_out, equal_var=False, alternative='greater')
     return t.item()
+
 
 def t_test_with_effect(B_sus, B_hold_out):
     _, p = ttest_ind(B_sus, B_hold_out, equal_var=False, alternative='greater')
@@ -118,78 +126,128 @@ def t_test_with_effect(B_sus, B_hold_out):
     return p.item(), neg_log_p.item(), d.item()
 
 
-
-if __name__ == "__main__":
-    # parameters for repeated tests
-    SPLIT_TIMES = 20 # number of repeated tests with different random splits
-    SPLIT_DS_LEN = attack_args.dataset_total_num // 2
-
-    MODEL_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "model")
-    os.makedirs(MODEL_OUTPUT_DIR, exist_ok=True)
-    TTest_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
-    os.makedirs(TTest_OUTPUT_DIR, exist_ok=True)
-    FEATURE_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "offline_features")
-
-    # load full extracted features
-    sus_feat_path = os.path.join(FEATURE_OUTPUT_DIR, "sus_features_full.pt")
-    hold_feat_path = os.path.join(FEATURE_OUTPUT_DIR, "hold_out_features_full.pt")
-
-    if not (os.path.exists(sus_feat_path) and os.path.exists(hold_feat_path)):
-        print("Offline features not found. Please run step1_extract_features.py first!")
-        sys.exit(1)
-
-    print("Loading offline features into memory...")
-    sus_features_full = torch.load(sus_feat_path)
-    hold_out_features_full = torch.load(hold_feat_path)
-    total_ds_len = attack_args.dataset_total_num
-
-    ttest_file_path = os.path.join(TTest_OUTPUT_DIR, f"ttest_results.json")
+def process_single_pair(loader, pair_idx, MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR, SPLIT_TIMES, SPLIT_DS_LEN):
+    """
+    Process a single dataset pair for t-test
+    """
+    print(f"\n{'='*60}")
+    print(f"Processing Pair {pair_idx}")
+    print(f"{'='*60}")
+    
+    # Load features for this pair
+    ds1_feats, ds2_feats = loader.load_ds12_features(pair_idx)
+    
+    print(f"  DS1 features shape: {ds1_feats.shape}")
+    print(f"  DS2 features shape: {ds2_feats.shape}")
+    
+    total_ds_len = ds1_feats.shape[0]
+    
+    ttest_file_path = os.path.join(TTest_OUTPUT_DIR, f"ttest_pair_{pair_idx}_results.json")
+    
+    results = []
+    
     for test_i in range(SPLIT_TIMES):
-        preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"preds_{test_i}.json")
-
-        print(f"\n--- Start Testing {test_i} ---")
+        preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}_preds_{test_i}.json")
+        
+        print(f"\n--- Start Testing Pair {pair_idx} - Test {test_i} ---")
         time_start = time.time()
-
-        # generate the exact permutation indices
+        
+        # Generate exact permutation indices
         generator = torch.Generator().manual_seed(test_i)
         indices = torch.randperm(total_ds_len, generator=generator)
         A_indices = indices[:SPLIT_DS_LEN]
         B_indices = indices[SPLIT_DS_LEN:]
-
-        # split A
-        sus_features_A = process_features(sus_features_full[A_indices], hold_out_features_full[A_indices])
-        # Split B
-        sus_features_B = process_features(sus_features_full[B_indices], hold_out_features_full[B_indices])
-
-        # train model on A
+        
+        # Split A and B using ds1 as "sus" and ds2 as "hold_out"
+        features_A = process_features(ds1_feats[A_indices], ds2_feats[A_indices])
+        features_B = process_features(ds1_feats[B_indices], ds2_feats[B_indices])
+        
+        # Train model on A
         model = train_model(
-            sus_features_A[0], sus_features_A[1],
-            sus_features_A[2], sus_features_A[3],
+            features_A[0], features_A[1],
+            features_A[2], features_A[3],
             test_i, MODEL_OUTPUT_DIR
         )
-
-        # predict on B
-        features_B = torch.cat((sus_features_B[0], sus_features_B[2]), dim=0)
-        label_B = torch.cat((sus_features_B[1], sus_features_B[3]), dim=0)
-
+        
+        # Predict on B
+        features_B = torch.cat((features_B[0], features_B[2]), dim=0)
+        label_B = torch.cat((features_B[1], features_B[3]), dim=0)
+        
         preds = predict(model, features_B)
         B_sus = preds[label_B == 1].cpu().numpy()
         B_hold_out = preds[label_B == 0].cpu().numpy()
-
+        
         with open(preds_file_path, "w", encoding='utf-8') as f:
             json.dump({
                 "B_sus_preds": B_sus.tolist(),
                 "B_hold_out_preds": B_hold_out.tolist(),
-                "B_sus_labels": sus_features_B[1].cpu().numpy().tolist(),
-                "B_hold_out_labels": sus_features_B[3].cpu().numpy().tolist()
+                "B_sus_labels": features_B[1].cpu().numpy().tolist(),
+                "B_hold_out_labels": features_B[3].cpu().numpy().tolist()
             }, f, indent=4)
-
-        # calculate welch's t-statistic for all tests
+        
+        # Calculate Welch's t-statistic
         t_statistic = t_test(B_sus, B_hold_out)
-        print(f"Result {test_i}: t={t_statistic:.4f}")
-        print(f"Time for experiment {test_i}: {time.time() - time_start:.2f} seconds")
-        with open(ttest_file_path, "a", encoding='utf-8') as f:
-            json.dump({
-                "test_i": test_i,
-                "t_statistic": t_statistic,
-            }, f, indent=4)
+        print(f"Result Pair {pair_idx} Test {test_i}: t={t_statistic:.4f}")
+        print(f"Time for experiment: {time.time() - time_start:.2f} seconds")
+        
+        results.append({
+            "pair_idx": pair_idx,
+            "test_i": test_i,
+            "t_statistic": t_statistic
+        })
+    
+    # Save all results for this pair
+    with open(ttest_file_path, "w", encoding='utf-8') as f:
+        json.dump(results, f, indent=4)
+    
+    return results
+
+
+if __name__ == "__main__":
+    # Parameters
+    SPLIT_TIMES = 20  # Number of repeated tests
+    SPLIT_DS_LEN = attack_args.dataset_total_num // 2
+    NUM_PAIRS_TO_PROCESS = 100  # Total pairs to process
+    
+    MODEL_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "model")
+    os.makedirs(MODEL_OUTPUT_DIR, exist_ok=True)
+    TTest_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
+    os.makedirs(TTest_OUTPUT_DIR, exist_ok=True)
+    
+    # Create the loader
+    print("Initializing Metadata & Feature Loader...")
+    loader = create_loader()
+    
+    all_pair_results = []
+    
+    print("Starting t-test on dataset pairs")
+    # Process each pair
+    for pair_idx in range(NUM_PAIRS_TO_PROCESS):
+        try:
+            pair_results = process_single_pair(
+                loader, pair_idx, 
+                MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR,
+                SPLIT_TIMES, SPLIT_DS_LEN
+            )
+            all_pair_results.extend(pair_results)
+        except FileNotFoundError as e:
+            print(f"\Error: Pair {pair_idx} not found, stopping.")
+            # print(f"Error: {e}")
+            break
+    
+    # Save all combined results
+    if all_pair_results:
+        all_results_path = os.path.join(TTest_OUTPUT_DIR, "all_ttest_results.json")
+        with open(all_results_path, "w", encoding='utf-8') as f:
+            json.dump(all_pair_results, f, indent=4)
+        print(f"\nSaved all results to {all_results_path}")
+        
+        # Calculate summary statistics
+        t_stats = [r['t_statistic'] for r in all_pair_results]
+        print(f"\nSummary Statistics:")
+        print(f"  Total tests: {len(t_stats)}")
+        print(f"  Mean t-statistic: {np.mean(t_stats):.4f}")
+        print(f"  Std t-statistic: {np.std(t_stats):.4f}")
+        print(f"  Min t-statistic: {np.min(t_stats):.4f}")
+        print(f"  Max t-statistic: {np.max(t_stats):.4f}")
+

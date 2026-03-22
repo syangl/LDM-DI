@@ -55,8 +55,8 @@ def create_parser():
     dataset_group.add_argument(
         "--used_datasets",
         default=[
-            "commoncatalog_cc_by",
-            "D_hold_out",
+            "laion_aesthetics_v2_5p0",
+            "D_hold_out_laion_aesthetics_v2_5p0",
         ],
         choices=[
             ## non-iid datasets
@@ -125,12 +125,14 @@ attack_args = parser.parse_args()
 dataset_plot_names = {
     "coco_2017_val": "COCO2017-val",
     "laion_aesthetics_v2_5p0": "LAION Aesthetics v2 5+",
-    "laion_high_resolution": "LAION High Resolution",
+    # "laion_high_resolution": "LAION High Resolution",
     "commoncatalog_cc_by": "CommonCatalog CC-BY",
     "laion2b_multi_translated": "LAION-2B Multi Translated",
     "nocaps": "NoCaps",
-    "mixed_1": "MixDS-1",
-    "mixed_2": "MixDS-2",
+    "D_hold_out_commoncatalog_cc_by": "Hold-out of CommonCatalog CC-BY",
+    "D_hold_out_laion_aesthetics_v2_5p0": "Hold-out of LAION Aesthetics v2 5+",
+    "D_base_1": "Calibrated Hold-out Base-1",
+    "D_base_2": "Calibrated Hold-out Base-2",
 }
 model_plot_names = {
     "stable-diffusion-v1p5": "Stable-Diffusion-v1-5",
