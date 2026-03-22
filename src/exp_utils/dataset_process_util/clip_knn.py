@@ -15,8 +15,8 @@ from exp_utils.config_util.attack_config import attack_args, TRAIN_OUTPUT_DIR, d
 import json
 import clip
 from transformers import CLIPTokenizer
-
-
+D_HOLD_OUT_NAME = f"D_hold_out_{dataset_config_1['dataset']}"
+D_HOLD_OUT_OUTPUT_ROOT = os.path.join(attack_args.local_dataset_path, D_HOLD_OUT_NAME, "metadata")
 
 class DistributionOverlapFinder:
     def __init__(self):
@@ -88,13 +88,8 @@ class DistributionOverlapFinder:
         
         return scores, sample_infos
 
-    def save_metadata_only(self,
-                           overlap_dataset_with_info,
-                           D_hold_out_name,
-                           output_dir="overlap_results",
-                           ):
-        save_dir = os.path.join(current_dir, output_dir)
-        os.makedirs(save_dir, exist_ok=True)
+    def save_metadata_only(self, overlap_dataset_with_info):
+        os.makedirs(D_HOLD_OUT_OUTPUT_ROOT, exist_ok=True)
         
         metadata_list = []
         for new_index, (local_index, _, info) in enumerate(overlap_dataset_with_info):
@@ -103,7 +98,7 @@ class DistributionOverlapFinder:
                 'original_index': int(local_index)
             })
         
-        output_file = os.path.join(save_dir, f"{D_hold_out_name}.json")
+        output_file = os.path.join(D_HOLD_OUT_OUTPUT_ROOT, f"meta_{D_HOLD_OUT_NAME}.json")
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(metadata_list, f, indent=4)
         
@@ -175,19 +170,13 @@ def find_distribution_overlap(dataloader1, dataloaders2, overlap_finder, target_
 def find_overlap_main(
     dataloader1,
     dataloaders2,
-    D_hold_out_name,
     target_num,
-    output_dir="overlap_results",
 ):
     # find overlapping examples
     overlap_finder = DistributionOverlapFinder()
     overlap_holdout = find_distribution_overlap(dataloader1, dataloaders2, overlap_finder, target_num)
 
-    overlap_finder.save_metadata_only(
-        overlap_dataset_with_info=overlap_holdout,
-        D_hold_out_name=D_hold_out_name,
-        output_dir=output_dir,
-    )
+    overlap_finder.save_metadata_only(overlap_dataset_with_info=overlap_holdout)
 
     print("Overlap metadata saved")
 
@@ -244,6 +233,5 @@ if __name__ == "__main__":
     # get TARGET_NUM images from Q = {Q1, Q2, Q3}
     find_overlap_main(dataloader1=dataloader1,
                       dataloaders2=dataloaders2,
-                      D_hold_out_name=f"D_hold_out_{dataset_config_1['dataset']}",
                       target_num=TARGET_NUM,
                       )

@@ -162,7 +162,7 @@ def convert2tensor32(mia_scores):
     else: 
         return torch.from_numpy(np.array(mia_scores, dtype=np.float32))
 
-def extract_features_for_dataset(dataset_config, pipe):
+def extract_features_for_dataset(dataset_config, pipe, feat_dict_path):
     """
     Extract features for a single dataset and save with unique identifiers
     """
@@ -211,9 +211,9 @@ def extract_features_for_dataset(dataset_config, pipe):
         features_dict[unique_id] = features_full[pos]
     
     # Save feature dict
-    feat_path = os.path.join(OUTPUT_ROOT_PATH, "offline_features", f"{dataset_name}_features_dict.pt")
-    torch.save(features_dict, feat_path)
-    print(f"Successfully saved features dict for {dataset_name} to {feat_path}")
+    assert os.path.exists(os.path.dirname(feat_dict_path)), f"Feature dict path {feat_dict_path} does not exist!"
+    torch.save(features_dict, feat_dict_path)
+    print(f"Successfully saved features dict for {dataset_name} to {feat_dict_path}")
     
     return features_full, features_dict
 
@@ -252,7 +252,7 @@ if __name__ == "__main__":
         }
         
         # Extract features for this dataset
-        extract_features_for_dataset(dataset_config, pipe)
+        extract_features_for_dataset(dataset_config, pipe, feat_dict_path)
     
     print("\n" + "="*60)
     print("Feature extraction complete for all datasets!")

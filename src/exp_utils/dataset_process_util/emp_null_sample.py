@@ -38,7 +38,7 @@ NUM_PAIRS = 100
 # TEXTURE_CLUSTERS, CLIP_CLUSTERS = determine_k(LOAD_NUM*4)
 # print(f"TEXTURE_CLUSTERS: {TEXTURE_CLUSTERS}, CLIP_CLUSTERS: {CLIP_CLUSTERS}")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-OUTPUT_ROOT = os.path.join(current_dir, "mixed_datasets_metadata")
+OUTPUT_ROOT = os.path.join(attack_args.local_dataset_path, "D_base")
 
 
 
@@ -160,54 +160,6 @@ def split_datasets(df):
     return df_a, df_b
 
 
-def classifier_test(df_a, df_b):
-    X_a = np.stack(df_a['embedding'].values)
-    X_b = np.stack(df_b['embedding'].values)
-    X = np.vstack([X_a, X_b])
-    y = np.hstack([np.ones(len(X_a)), np.zeros(len(X_b))])
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.8, random_state=0, shuffle=True)
-
-    X_train_t = torch.FloatTensor(X_train).to(DEVICE)
-    y_train_t = torch.FloatTensor(y_train).to(DEVICE)
-    X_test_t = torch.FloatTensor(X_test).to(DEVICE)
-    y_test_t = torch.FloatTensor(y_test).to(DEVICE)
-
-    model = nn.Sequential(nn.Linear(X.shape[1], 1), nn.Sigmoid()).to(DEVICE)
-    optimizer = optim.SGD(model.parameters(), lr=0.01)
-    criterion = nn.BCELoss()
-
-    model.train()
-    for _ in range(1000):
-        optimizer.zero_grad()
-        out = model(X_train_t).squeeze()
-        loss = criterion(out, y_train_t)
-        loss.backward()
-        optimizer.step()
-
-    model.eval()
-    with torch.no_grad():
-        preds = model(X_test_t).squeeze()
-        cls_preds = (preds > 0.5).float()
-        acc = (cls_preds == y_test_t).float().mean().item()
-    print(f"Classifier Accuracy: {acc:.4f}")
-
-
-def verify_datasets(df_a, df_b):
-    classifier_test(df_a, df_b)
-
-    src_a = df_a['source_dataset'].value_counts(normalize=True)
-    src_b = df_b['source_dataset'].value_counts(normalize=True)
-    print(f"{'Source':<15} | {'Set A':<10} | {'Set B':<10} | {'Diff'}")
-    all_srcs = list(set(src_a.index) | set(src_b.index))
-    total_diff = 0
-    for src in sorted(all_srcs):
-        pa = src_a.get(src, 0.0)
-        pb = src_b.get(src, 0.0)
-        diff = abs(pa - pb)
-        total_diff += diff
-        print(f"{src:<15} | {pa:.2%} | {pb:.2%} | {diff:.2%}")
-    return True
-
 
 def save_metadata_only(df, output_file):
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
@@ -221,64 +173,64 @@ def save_metadata_only(df, output_file):
         json.dump(metadata_list, f, indent=4)
 
 
-def save_datasets(df, folder_name, dataset_configs):
-    base_save_dir = os.path.join(OUTPUT_ROOT, folder_name)
-    img_save_dir = os.path.join(base_save_dir, "data", "val")
-    meta_save_dir = os.path.join(base_save_dir, "metadata")
+# def save_datasets(df, folder_name, dataset_configs):
+#     base_save_dir = os.path.join(OUTPUT_ROOT, folder_name)
+#     img_save_dir = os.path.join(base_save_dir, "data", "val")
+#     meta_save_dir = os.path.join(base_save_dir, "metadata")
 
-    os.makedirs(img_save_dir, exist_ok=True)
-    os.makedirs(meta_save_dir, exist_ok=True)
+#     os.makedirs(img_save_dir, exist_ok=True)
+#     os.makedirs(meta_save_dir, exist_ok=True)
 
-    dst_meta_file = os.path.join(meta_save_dir, f"meta_{folder_name}.jsonl")
+#     dst_meta_file = os.path.join(meta_save_dir, f"meta_{folder_name}.jsonl")
 
-    source_meta_cache = {}
-    unique_sources = df['source_dataset'].unique()
+#     source_meta_cache = {}
+#     unique_sources = df['source_dataset'].unique()
 
-    for source_name in unique_sources:
-        config = dataset_configs[source_name]
-        dataset_load_path = config['load_path']
-        base_path = dataset_load_path.replace("data/val", "")
-        real_dataset_name = config['dataset']
+#     for source_name in unique_sources:
+#         config = dataset_configs[source_name]
+#         dataset_load_path = config['load_path']
+#         base_path = dataset_load_path.replace("data/val", "")
+#         real_dataset_name = config['dataset']
 
-        src_meta_file = os.path.join(base_path, "metadata", f"meta_{real_dataset_name}.jsonl")
+#         src_meta_file = os.path.join(base_path, "metadata", f"meta_{real_dataset_name}.jsonl")
 
-        with open(src_meta_file, 'r', encoding='utf-8') as f:
-            temp_dict = {}
-            for line in f:
-                item = json.loads(line)
-                idx_key = str(item['index'])
-                temp_dict[idx_key] = item
-            source_meta_cache[source_name] = temp_dict
+#         with open(src_meta_file, 'r', encoding='utf-8') as f:
+#             temp_dict = {}
+#             for line in f:
+#                 item = json.loads(line)
+#                 idx_key = str(item['index'])
+#                 temp_dict[idx_key] = item
+#             source_meta_cache[source_name] = temp_dict
 
-    save_count = 0
-    with open(dst_meta_file, 'w', encoding='utf-8') as dst_f:
-        for new_index, (_, row) in tqdm(enumerate(df.iterrows()), total=len(df)):
-            source_name = row['source_dataset']
-            original_index = row['original_index']
-            config = dataset_configs[source_name]
+#     save_count = 0
+#     with open(dst_meta_file, 'w', encoding='utf-8') as dst_f:
+#         for new_index, (_, row) in tqdm(enumerate(df.iterrows()), total=len(df)):
+#             source_name = row['source_dataset']
+#             original_index = row['original_index']
+#             config = dataset_configs[source_name]
 
-            src_img_path = os.path.join(config['load_path'], f"{original_index}.jpg")
+#             src_img_path = os.path.join(config['load_path'], f"{original_index}.jpg")
 
-            new_filename = f"{new_index}.jpg"
-            dst_img_path = os.path.join(img_save_dir, new_filename)
+#             new_filename = f"{new_index}.jpg"
+#             dst_img_path = os.path.join(img_save_dir, new_filename)
 
-            img_pil = Image.open(src_img_path)
-            img_pil.save(dst_img_path)
-            save_count += 1
+#             img_pil = Image.open(src_img_path)
+#             img_pil.save(dst_img_path)
+#             save_count += 1
 
-            meta_dict = source_meta_cache[source_name]
-            meta_item = meta_dict[str(original_index)]
+#             meta_dict = source_meta_cache[source_name]
+#             meta_item = meta_dict[str(original_index)]
 
-            cap = meta_item['caption']
-            if isinstance(cap, list):
-                cap = max(cap, key=len)
-            meta_item['caption'] = cap
+#             cap = meta_item['caption']
+#             if isinstance(cap, list):
+#                 cap = max(cap, key=len)
+#             meta_item['caption'] = cap
 
-            meta_item['index'] = new_index
-            meta_item['original_index'] = original_index
-            meta_item['original_source'] = source_name
+#             meta_item['index'] = new_index
+#             meta_item['original_index'] = original_index
+#             meta_item['original_source'] = source_name
 
-            dst_f.write(json.dumps(meta_item) + '\n')
+#             dst_f.write(json.dumps(meta_item) + '\n')
 
 
 

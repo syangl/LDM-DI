@@ -11,6 +11,15 @@ from torchvision import transforms as tfms
 import torch
 
 
+ORIGINAL_DATASETS = [
+    "commoncatalog_cc_by",
+    "laion_aesthetics_v2_5p0",
+    "coco_2017_val",
+    "laion2b_multi_translated",
+    "nocaps",
+]
+
+
 class ImageDS(Dataset):
 
     def __init__(
@@ -45,15 +54,20 @@ class ImageDS(Dataset):
                 try:
                     ret = data.get('caption')
                 except Exception as e:
-                    # ret = data.get('text')
                     print(f"Error getting caption for index {index}: {e}")
-                # speed up: remove data from metadata
                 metadata.remove(data)
-        # if caption is None, set to empty string
         if ret == None:
             ret = ""
         return ret
-    def _load_dataset(self, DATASET_CONFIG):
+
+    def _load_ds(self, DATASET_CONFIG):
+        dataset_name = DATASET_CONFIG["dataset"]
+        if dataset_name in ORIGINAL_DATASETS:
+            return self._load_original_dataset(DATASET_CONFIG)
+        else:
+            return self._load_non_original_dataset(DATASET_CONFIG)
+
+    def _load_original_dataset(self, DATASET_CONFIG):
         load_path = DATASET_CONFIG["load_path"]
         ds = dict()
         image_name_list = os.listdir(load_path)
@@ -86,8 +100,64 @@ class ImageDS(Dataset):
         print()
         return ds
 
-    def _load_ds(self, DATASET_CONFIG):
-        return self._load_dataset(DATASET_CONFIG)
+    def _load_non_original_dataset(self, DATASET_CONFIG):
+        dataset_name = DATASET_CONFIG["dataset"]
+        load_path = DATASET_CONFIG["load_path"]
+        
+        metadata_path = os.path.join(
+            load_path.replace(f"data/{DATASET_CONFIG['split']}", ""), f"metadata/meta_{dataset_name}.json")
+        
+        with open(metadata_path, 'r', encoding='utf-8') as meta_f:
+            metadata_list = json.load(meta_f)
+        
+        assert DATASET_CONFIG['load_num'] <= len(metadata_list)
+        
+        global_random.seed(attack_args.global_seed)
+        metadata_list = global_random.sample(metadata_list, DATASET_CONFIG['load_num'])
+        
+        ds = dict()
+        
+        for i, metadata_item in tqdm(enumerate(metadata_list), desc=f"loading {dataset_name}...", total=len(metadata_list)):
+            source_dataset = metadata_item['source_dataset']
+            original_index = metadata_item['original_index']
+            
+            source_dataset_config = {
+                "dataset": source_dataset,
+                "load_path": f"{attack_args.local_dataset_path}/{source_dataset}/data/{DATASET_CONFIG['split']}",
+                "split": DATASET_CONFIG['split'],
+            }
+            
+            caption, image_path = self._load_single_sample(source_dataset_config, original_index)
+            
+            unique_id = f"{source_dataset}_{original_index}"
+            ds[unique_id] = [caption, image_path]
+        
+        print(f"Load {len(ds)} images from {dataset_name}.")
+        print()
+        return ds
+
+    def _load_single_sample(self, source_dataset_config, original_index):
+        load_path = source_dataset_config["load_path"]
+        image_name = f"{original_index}.jpg"
+        image_path = os.path.join(load_path, image_name)
+        
+        caption_path = os.path.join(
+            load_path.replace(f"data/{source_dataset_config['split']}", ""), 
+            f"metadata/meta_{source_dataset_config['dataset']}.jsonl")
+        
+        with open(caption_path, 'r', encoding='utf-8') as meta_f:
+            metadata = [json.loads(line.strip()) for line in meta_f]
+        
+        caption = self._get_caption_by_index(metadata, original_index)
+        
+        if isinstance(caption, list):
+            caption = [c for c in caption if c is not None]
+            if caption:
+                caption = max(caption, key=len)
+            else:
+                caption = ""
+        
+        return caption, image_path
 
 
     def _prepare_data(self, tokenizer):

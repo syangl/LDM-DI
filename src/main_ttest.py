@@ -4,7 +4,7 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 from exp_utils.config_util.attack_config import attack_args, OUTPUT_ROOT_PATH
-from exp_utils.dataset_process_util.metadata_manager import create_loader
+from exp_utils.dataset_process_util.meta_feature_manager import create_loader
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -126,16 +126,16 @@ def t_test_with_effect(B_sus, B_hold_out):
     return p.item(), neg_log_p.item(), d.item()
 
 
-def process_single_pair(loader, pair_idx, MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR, SPLIT_TIMES, SPLIT_DS_LEN):
+def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR, SPLIT_TIMES, SPLIT_DS_LEN):
     """
     Process a single dataset pair for t-test
     """
     print(f"\n{'='*60}")
-    print(f"Processing Pair {pair_idx}")
+    print(f"Processing Pair {pair_idx}: {dataset1_name} vs {dataset2_name}")
     print(f"{'='*60}")
     
     # Load features for this pair
-    ds1_feats, ds2_feats = loader.load_ds12_features(pair_idx)
+    ds1_feats, ds2_feats = loader.load_dataset_pair_features(dataset1_name, dataset2_name, pair_idx)
     
     print(f"  DS1 features shape: {ds1_feats.shape}")
     print(f"  DS2 features shape: {ds2_feats.shape}")
@@ -192,6 +192,8 @@ def process_single_pair(loader, pair_idx, MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR, SP
         
         results.append({
             "pair_idx": pair_idx,
+            "dataset1": dataset1_name,
+            "dataset2": dataset2_name,
             "test_i": test_i,
             "t_statistic": t_statistic
         })
@@ -207,7 +209,14 @@ if __name__ == "__main__":
     # Parameters
     SPLIT_TIMES = 20  # Number of repeated tests
     SPLIT_DS_LEN = attack_args.dataset_total_num // 2
-    NUM_PAIRS_TO_PROCESS = 100  # Total pairs to process
+    NUM_PAIRS_TO_PROCESS = 100  # Total pairs to process for base12
+    
+    # Get dataset pair from attack_args
+    dataset1_name = attack_args.used_datasets[0]
+    dataset2_name = attack_args.used_datasets[1]
+    
+    # Check if this is a base12 pair
+    is_base12_pair = {dataset1_name, dataset2_name} == {"D_base_1", "D_base_2"}
     
     MODEL_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "model")
     os.makedirs(MODEL_OUTPUT_DIR, exist_ok=True)
@@ -220,20 +229,33 @@ if __name__ == "__main__":
     
     all_pair_results = []
     
-    print("Starting t-test on dataset pairs")
-    # Process each pair
-    for pair_idx in range(NUM_PAIRS_TO_PROCESS):
+    print(f"Starting t-test on dataset pair: {dataset1_name} vs {dataset2_name}")
+    
+    if is_base12_pair:
+        # Process multiple pairs for base12
+        for pair_idx in range(NUM_PAIRS_TO_PROCESS):
+            try:
+                pair_results = process_single_pair(
+                    loader, pair_idx, dataset1_name, dataset2_name,
+                    MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR,
+                    SPLIT_TIMES, SPLIT_DS_LEN
+                )
+                all_pair_results.extend(pair_results)
+            except FileNotFoundError as e:
+                print(f"\nError: Pair {pair_idx} not found, stopping.")
+                break
+    else:
+        # Single pair for sus + hold-out dataset
         try:
+            # Use pair_idx=0 for non-base12 pairs
             pair_results = process_single_pair(
-                loader, pair_idx, 
+                loader, 0, dataset1_name, dataset2_name,
                 MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR,
                 SPLIT_TIMES, SPLIT_DS_LEN
             )
             all_pair_results.extend(pair_results)
         except FileNotFoundError as e:
-            print(f"\Error: Pair {pair_idx} not found, stopping.")
-            # print(f"Error: {e}")
-            break
+            print(f"\nError: Dataset pair not found: {e}")
     
     # Save all combined results
     if all_pair_results:
@@ -246,8 +268,6 @@ if __name__ == "__main__":
         t_stats = [r['t_statistic'] for r in all_pair_results]
         print(f"\nSummary Statistics:")
         print(f"  Total tests: {len(t_stats)}")
-        print(f"  Mean t-statistic: {np.mean(t_stats):.4f}")
-        print(f"  Std t-statistic: {np.std(t_stats):.4f}")
         print(f"  Min t-statistic: {np.min(t_stats):.4f}")
         print(f"  Max t-statistic: {np.max(t_stats):.4f}")
 
