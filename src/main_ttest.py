@@ -209,7 +209,7 @@ if __name__ == "__main__":
     # Parameters
     SPLIT_TIMES = 20  # Number of repeated tests
     SPLIT_DS_LEN = attack_args.dataset_total_num // 2
-    NUM_PAIRS_TO_PROCESS = 100  # Total pairs to process for base12
+    K_BASE = 100  # Total pairs to process for base12
     
     # Get dataset pair from attack_args
     dataset1_name = attack_args.used_datasets[0]
@@ -233,7 +233,7 @@ if __name__ == "__main__":
     
     if is_base12_pair:
         # Process multiple pairs for base12
-        for pair_idx in range(NUM_PAIRS_TO_PROCESS):
+        for pair_idx in range(K_BASE):
             try:
                 pair_results = process_single_pair(
                     loader, pair_idx, dataset1_name, dataset2_name,
@@ -259,7 +259,7 @@ if __name__ == "__main__":
     
     # Save all combined results
     if all_pair_results:
-        all_results_path = os.path.join(TTest_OUTPUT_DIR, "all_ttest_results.json")
+        all_results_path = os.path.join(TTest_OUTPUT_DIR, f"ttest_pair_{dataset1_name}_{dataset2_name}_results.json")
         with open(all_results_path, "w", encoding='utf-8') as f:
             json.dump(all_pair_results, f, indent=4)
         print(f"\nSaved all results to {all_results_path}")

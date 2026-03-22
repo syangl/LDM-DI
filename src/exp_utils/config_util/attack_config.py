@@ -72,8 +72,15 @@ def create_parser():
             # hold-out sets
             "D_hold_out_commoncatalog_cc_by",
             "D_hold_out_laion_aesthetics_v2_5p0",
+            
+            # calibrated hold-out sets
             "D_base_1",
             "D_base_2",
+            
+            # FPR hold-out sets
+            "D_hold_out_coco_2017_val", # clip-knn filtered for COCO2017-val using other two hold-out sets
+            "D_hold_out_laion2b_multi_translated", # clip-knn filtered for LAION-2B Multi Translated using other two hold-out sets
+            "D_hold_out_nocaps", # clip-knn filtered for NoCaps using other two hold-out sets
         ],
         nargs="+",
         help="Used datasets")
