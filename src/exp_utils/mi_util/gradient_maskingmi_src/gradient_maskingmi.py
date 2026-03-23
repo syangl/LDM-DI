@@ -189,11 +189,9 @@ def execute_attack_step(pipe, x_0_latents, prompt_embeds, encode_prompt_addtions
 
 
 def execute_gradient_maskingmi_attack(dataloader, pipe):
-    """
-    Iterate through entire dataloader and execute gradient masking attack
-    """
     all_scores = []
-    timesteps = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900]
+    # timesteps = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900]
+    timesteps = [0, 200, 400, 600, 800,] # reduce cost
     masking_ratio = 0.2
     with tqdm(range(len(dataloader)), desc="Execute gradient_maskingmi attack") as tqdm_bar:
         for batch in dataloader:
@@ -205,7 +203,7 @@ def execute_gradient_maskingmi_attack(dataloader, pipe):
             tqdm_bar.update(1)
     
     # average scores across all timesteps
-    return np.concatenate(all_scores, axis=0).mean(axis=1).tolist()
+    return np.concatenate(all_scores, axis=0).mean(axis=1).squeeze(axis=1).tolist()
 
 
 def gradient_maskingmi_main():
