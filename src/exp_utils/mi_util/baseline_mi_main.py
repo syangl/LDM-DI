@@ -47,6 +47,23 @@ def execute_rediffusemi():
     rediffusemi_main()
 
 
+def execute_gradient_maskingmi():
+    from exp_utils.mi_util.gradient_maskingmi_src.gradient_maskingmi import gradient_maskingmi_main
+
+    gradient_maskingmi_main()
+
+
+def execute_multiple_lossmi():
+    from exp_utils.mi_util.multiple_lossmi_src.multiple_lossmi import multiple_lossmi_main
+
+    multiple_lossmi_main()
+
+
+def execute_noise_optimmi():
+    from exp_utils.mi_util.noise_optimmi_src.noise_optimmi import noise_optimmi_main
+
+    noise_optimmi_main()
+
 
 if __name__ == "__main__":
     # for debug
@@ -86,5 +103,23 @@ if __name__ == "__main__":
         sys.path.insert(0, src_path)
         # execute RediffuseMI
         execute_rediffusemi()
+    elif attack_args.baseline == "gradient_maskingmi":
+        # add the src_paths directory to the Python path
+        src_path = os.path.join(project_root, "exp_utils/mi_util/gradient_maskingmi_src")
+        sys.path.insert(0, src_path)
+        # execute GradientMaskingMI
+        execute_gradient_maskingmi()
+    elif attack_args.baseline == "multiple_lossmi":
+        # add the src_paths directory to the Python path
+        src_path = os.path.join(project_root, "exp_utils/mi_util/multiple_lossmi_src")
+        sys.path.insert(0, src_path)
+        # execute MultipleLossMI
+        execute_multiple_lossmi()
+    elif attack_args.baseline == "noise_optimmi":
+        # add the src_paths directory to the Python path
+        src_path = os.path.join(project_root, "exp_utils/mi_util/noise_optimmi_src")
+        sys.path.insert(0, src_path)
+        # execute NoiseOptimMI
+        execute_noise_optimmi()
     else:
         raise ValueError("Invalid baseline type")

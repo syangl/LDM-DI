@@ -103,7 +103,7 @@ def create_parser():
         "--baseline",
         type=str,
         default="structuralmi",
-        choices=["secmi", "structuralmi", "naivelossmi", "piami", "rediffusemi"],
+        choices=["secmi", "structuralmi", "naivelossmi", "piami", "rediffusemi", "gradient_maskingmi", "multiple_lossmi", "noise_optimmi"],
         help="baseline type")
 
     # Debug group
