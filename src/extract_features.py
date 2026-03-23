@@ -314,6 +314,3 @@ if __name__ == "__main__":
         # extract features for this dataset
         extract_features_for_dataset(dataset_config, pipe, feat_dict_path)
     
-    print("\n" + "="*60)
-    print("Feature extraction complete for all datasets!")
-    print("="*60)
