@@ -8,17 +8,16 @@ import json
 import torch
 from exp_utils.config_util.attack_config import OUTPUT_ROOT_PATH, attack_args
 from exp_utils.dataset_process_util.emp_null_sample import OUTPUT_ROOT as D_BASE_METADATA_OUTPUT_ROOT
-from exp_utils.dataset_process_util.clip_knn import D_HOLD_OUT_OUTPUT_ROOT as D_HOLD_OUT_METADATA_OUTPUT_ROOT
 
 class MetadataFeatureLoader:
     """
     Unified loader class for metadata and MIA features
     """
     
-    def __init__(self, feature_output_dir=None, d_base_metadata_output_dir=None, d_hold_out_metadata_output_dir=None):
+    def __init__(self, feature_output_dir=None, d_base_metadata_output_dir=None):
         self.feature_output_dir = feature_output_dir or os.path.join(OUTPUT_ROOT_PATH, "offline_features")
         self.d_base_metadata_output_dir = d_base_metadata_output_dir or D_BASE_METADATA_OUTPUT_ROOT
-        self.d_hold_out_metadata_output_dir = d_hold_out_metadata_output_dir or D_HOLD_OUT_METADATA_OUTPUT_ROOT
+        self.local_dataset_path = attack_args.local_dataset_path
         
         # initialize cached data
         self._feature_dict_cache = {}
@@ -135,7 +134,7 @@ class MetadataFeatureLoader:
         Load hold-out dataset metadata
         Returns: metadata_list
         """
-        hold_out_file = os.path.join(self.d_hold_out_metadata_output_dir, f"meta_{dataset_name}.json")
+        hold_out_file = os.path.join(self.local_dataset_path, dataset_name, "metadata", f"meta_{dataset_name}.json")
         
         if not os.path.exists(hold_out_file):
             raise FileNotFoundError(f"Hold-out dataset metadata not found for {dataset_name}: {hold_out_file}")
@@ -157,14 +156,12 @@ class MetadataFeatureLoader:
         elif dataset_name in ["D_base_1", "D_base_2"]:
             raise ValueError("D_base_1 and D_base_2 are only accessible as pairs, use load_base12_pair instead")
         else:
-            # For other dataset names, try to load as single dataset metadata
-            # First check overlap results
-            hold_out_file = os.path.join(self.d_hold_out_metadata_output_dir, f"meta_{dataset_name}.json")
-            if os.path.exists(hold_out_file):
-                with open(hold_out_file, 'r', encoding='utf-8') as f:
+            # for other dataset names, try to load as single dataset metadata
+            metadata_file = os.path.join(self.local_dataset_path, dataset_name, "metadata", f"meta_{dataset_name}.json")
+            if os.path.exists(metadata_file):
+                with open(metadata_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
             
-            # If not found, raise error
             raise FileNotFoundError(f"Metadata not found for dataset {dataset_name}")
     
     def load_dataset_pair_features(self, dataset1_name, dataset2_name, pair_index=None):

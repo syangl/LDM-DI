@@ -105,7 +105,7 @@ def execute_noise_optimmi_attack(dataloader, pipe):
     # return a 2d list where each row has two features [loss, l2]
     result = []
     for loss, l2 in zip(all_scores_loss, all_scores_l2):
-        result.append([loss, l2])
+        result.append([loss.item(), l2.item()])
     
     return result
 

@@ -236,9 +236,14 @@ if __name__ == "__main__":
         for pair_idx in range(K_BASE):
             try:
                 pair_results = process_single_pair(
-                    loader, pair_idx, dataset1_name, dataset2_name,
-                    MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR,
-                    SPLIT_TIMES, SPLIT_DS_LEN
+                    loader, 
+                    pair_idx, 
+                    dataset1_name, 
+                    dataset2_name,
+                    MODEL_OUTPUT_DIR, 
+                    TTest_OUTPUT_DIR,
+                    SPLIT_TIMES, 
+                    SPLIT_DS_LEN
                 )
                 all_pair_results.extend(pair_results)
             except FileNotFoundError as e:
@@ -249,13 +254,18 @@ if __name__ == "__main__":
         try:
             # Use pair_idx=0 for non-base12 pairs
             pair_results = process_single_pair(
-                loader, 0, dataset1_name, dataset2_name,
-                MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR,
-                SPLIT_TIMES, SPLIT_DS_LEN
+                loader, 
+                0, 
+                dataset1_name, 
+                dataset2_name,
+                MODEL_OUTPUT_DIR, 
+                TTest_OUTPUT_DIR,
+                SPLIT_TIMES, 
+                SPLIT_DS_LEN
             )
             all_pair_results.extend(pair_results)
         except FileNotFoundError as e:
-            print(f"\nError: Dataset pair not found: {e}")
+            print(f"\nError: {e}")
     
     # Save all combined results
     if all_pair_results:
