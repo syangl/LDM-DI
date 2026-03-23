@@ -129,6 +129,50 @@ class MetadataFeatureLoader:
         """
         return self.load_base12_pair(pair_index)
     
+    def _load_metadata_file(self, file_path):
+        """
+        Load metadata file, supports both json and jsonl formats
+        """
+        if not os.path.exists(file_path):
+            return None
+        
+        if file_path.endswith('.jsonl'):
+            metadata_list = []
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        metadata_list.append(json.loads(line))
+            return metadata_list
+        elif file_path.endswith('.json'):
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        return None
+    
+    def _build_metadata_from_original_dataset(self, dataset_name):
+        """
+        Build metadata list for original datasets (from jsonl files)
+        These don't have source_dataset/original_index, so we build them
+        """
+        metadata_file_jsonl = os.path.join(self.local_dataset_path, dataset_name, "metadata", f"meta_{dataset_name}.jsonl")
+        
+        if not os.path.exists(metadata_file_jsonl):
+            return None
+        
+        metadata_list = self._load_metadata_file(metadata_file_jsonl)
+        
+        if metadata_list is None:
+            return None
+        
+        result = []
+        for item in metadata_list:
+            result.append({
+                'source_dataset': dataset_name,
+                'original_index': int(item.get('index'))
+            })
+        
+        return result
+    
     def load_hold_out_metadata(self, dataset_name):
         """
         Load hold-out dataset metadata
@@ -156,11 +200,17 @@ class MetadataFeatureLoader:
         elif dataset_name in ["D_base_1", "D_base_2"]:
             raise ValueError("D_base_1 and D_base_2 are only accessible as pairs, use load_base12_pair instead")
         else:
-            # for other dataset names, try to load as single dataset metadata
-            metadata_file = os.path.join(self.local_dataset_path, dataset_name, "metadata", f"meta_{dataset_name}.json")
-            if os.path.exists(metadata_file):
-                with open(metadata_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+            # for original training/hold-out dataset names, try to load as single dataset metadata
+            metadata_file_json = os.path.join(self.local_dataset_path, dataset_name, "metadata", f"meta_{dataset_name}.json")
+            if os.path.exists(metadata_file_json):
+                metadata = self._load_metadata_file(metadata_file_json)
+                if metadata is not None:
+                    return metadata
+            
+            # build from original dataset jsonl
+            metadata = self._build_metadata_from_original_dataset(dataset_name)
+            if metadata is not None:
+                return metadata
             
             raise FileNotFoundError(f"Metadata not found for dataset {dataset_name}")
     
@@ -170,11 +220,8 @@ class MetadataFeatureLoader:
         Handles both base12 pairs and hold-out + base dataset pairs
         
         Args:
-            dataset1_name: Name of first dataset
-            dataset2_name: Name of second dataset
             pair_index: Optional pair index for base12 pairs
         """
-        # Case 1: Both are D_base_1 and D_base_2 (base12 pair)
         if {dataset1_name, dataset2_name} == {"D_base_1", "D_base_2"}:
             if pair_index is None:
                 raise ValueError("pair_index required for base12 pairs")
@@ -183,8 +230,6 @@ class MetadataFeatureLoader:
                 return ds2_feats, ds1_feats
             return ds1_feats, ds2_feats
         
-        # Case 2: One is D_hold_out_*, the other is a regular dataset
-        # Load each dataset separately
         ds1_meta = self.load_single_dataset_metadata(dataset1_name)
         ds2_meta = self.load_single_dataset_metadata(dataset2_name)
         

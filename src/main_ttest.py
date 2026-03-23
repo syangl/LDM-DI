@@ -159,19 +159,22 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
         B_indices = indices[SPLIT_DS_LEN:]
         
         # Split A and B using ds1 as "sus" and ds2 as "hold_out"
-        features_A = process_features(ds1_feats[A_indices], ds2_feats[A_indices])
-        features_B = process_features(ds1_feats[B_indices], ds2_feats[B_indices])
+        features_A_tuple = process_features(ds1_feats[A_indices], ds2_feats[A_indices])
+        features_B_tuple = process_features(ds1_feats[B_indices], ds2_feats[B_indices])
         
         # Train model on A
         model = train_model(
-            features_A[0], features_A[1],
-            features_A[2], features_A[3],
-            test_i, MODEL_OUTPUT_DIR
+            features_A_tuple[0], 
+            features_A_tuple[1],
+            features_A_tuple[2], 
+            features_A_tuple[3],
+            test_i, 
+            MODEL_OUTPUT_DIR
         )
         
         # Predict on B
-        features_B = torch.cat((features_B[0], features_B[2]), dim=0)
-        label_B = torch.cat((features_B[1], features_B[3]), dim=0)
+        features_B = torch.cat((features_B_tuple[0], features_B_tuple[2]), dim=0)
+        label_B = torch.cat((features_B_tuple[1], features_B_tuple[3]), dim=0)
         
         preds = predict(model, features_B)
         B_sus = preds[label_B == 1].cpu().numpy()
@@ -181,8 +184,8 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
             json.dump({
                 "B_sus_preds": B_sus.tolist(),
                 "B_hold_out_preds": B_hold_out.tolist(),
-                "B_sus_labels": features_B[1].cpu().numpy().tolist(),
-                "B_hold_out_labels": features_B[3].cpu().numpy().tolist()
+                "B_sus_labels": features_B_tuple[1].cpu().numpy().tolist(),
+                "B_hold_out_labels": features_B_tuple[3].cpu().numpy().tolist()
             }, f, indent=4)
         
         # Calculate Welch's t-statistic
