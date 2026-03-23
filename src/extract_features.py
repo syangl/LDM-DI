@@ -259,7 +259,14 @@ def extract_features_for_dataset(dataset_config, pipe, feat_dict_path):
     
     for method, choice in methods:
         scores = exec_mia(dataset_name, method, pipe, dataloader, choice)
-        features_list.append(convert2tensor32(scores).unsqueeze(1))
+        if method == "noise_optimmi":
+            # noise_optimmi returns two features per sample: [loss, l2]
+            scores_np = np.array(scores)
+            features_list.append(convert2tensor32(scores_np[:, 0]).unsqueeze(1))  # loss feature
+            features_list.append(convert2tensor32(scores_np[:, 1]).unsqueeze(1))  # l2 feature
+        else:
+            # all other methods return one feature per sample
+            features_list.append(convert2tensor32(scores).unsqueeze(1))
     
     # concat features
     features_full = torch.cat(features_list, dim=1)
