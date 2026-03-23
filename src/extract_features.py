@@ -264,6 +264,12 @@ def extract_features_for_dataset(dataset_config, pipe, feat_dict_path):
             scores_np = np.array(scores)
             features_list.append(convert2tensor32(scores_np[:, 0]).unsqueeze(1))  # loss feature
             features_list.append(convert2tensor32(scores_np[:, 1]).unsqueeze(1))  # l2 feature
+        elif method in ["gradient_maskingmi", "multiple_lossmi"]:
+            # these methods return multiple timestep features per sample
+            scores_np = np.array(scores)
+            # add each timestep as a separate feature
+            for i in range(scores_np.shape[1]):
+                features_list.append(convert2tensor32(scores_np[:, i]).unsqueeze(1))
         else:
             # all other methods return one feature per sample
             features_list.append(convert2tensor32(scores).unsqueeze(1))

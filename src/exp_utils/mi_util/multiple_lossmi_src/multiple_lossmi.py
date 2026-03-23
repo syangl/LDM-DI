@@ -87,8 +87,13 @@ def execute_multiple_lossmi_attack(dataloader, pipe):
             
             tqdm_bar.update(1)
     
-    # average scores across all timesteps and all samples
-    return np.concatenate(all_scores, axis=0).mean(axis=(1, 2)).tolist()
+    # # average scores across all timesteps and all samples
+    # return np.concatenate(all_scores, axis=0).mean(axis=(1, 2)).tolist()
+    
+    # concatenate all samples, then reshape to (N_samples, N_timesteps)
+    all_scores_np = np.concatenate(all_scores, axis=0)  # (N_samples, N_timesteps, 1)
+    all_scores_np = all_scores_np.squeeze(axis=2)  # (N_samples, N_timesteps)
+    return all_scores_np.tolist()
 
 
 def multiple_lossmi_main():
