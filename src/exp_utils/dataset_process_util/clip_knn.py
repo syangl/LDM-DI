@@ -15,6 +15,7 @@ from exp_utils.config_util.attack_config import attack_args, TRAIN_OUTPUT_DIR, d
 import json
 import clip
 from transformers import CLIPTokenizer
+
 D_HOLD_OUT_NAME = f"D_hold_out_{dataset_config_1['dataset']}"
 D_HOLD_OUT_OUTPUT_ROOT = os.path.join(attack_args.local_dataset_path, D_HOLD_OUT_NAME, "metadata")
 
@@ -183,15 +184,22 @@ def find_overlap_main(
 
 if __name__ == "__main__":
     TARGET_NUM = attack_args.dataset_total_num
+    TOTAL_NUM = 3000
     tokenizer = CLIPTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"))
 
     # dataset 1
-    dataloader1, _ = create_dataset_dataloader(TRAIN_OUTPUT_DIR,
+    dataloader1, dataset1 = create_dataset_dataloader(TRAIN_OUTPUT_DIR,
                                                dataset_config_1,
                                                tokenizer,
                                                224, 
                                                64,
                                                need_save=False)
+    
+    # collect dataset1 indices
+    dataset1_indices = set()
+    for sample in dataset1.data:
+        dataset1_indices.add(str(sample['index']))
+    print(f"Collected {len(dataset1_indices)} indices from dataset1")
     
     # given hold-out source data Q1, Q2, ...
     dataset_configs_2 = [
@@ -199,21 +207,21 @@ if __name__ == "__main__":
         {
             "dataset": "coco_2017_val", 
             "load_path": f"{attack_args.local_dataset_path}/coco_2017_val/data/val",
-            "load_num": 3000,  # equal sub source proportion to each Q_i
+            "load_num": TOTAL_NUM,  # equal sub source proportion to each Q_i
             "split": "val",
         },
         # Q2
         {
             "dataset": "nocaps",  
             "load_path": f"{attack_args.local_dataset_path}/nocaps/data/val",
-            "load_num": 3000,
+            "load_num": TOTAL_NUM,
             "split": "val",
         },
         # Q3
         {
             "dataset": "laion2b_multi_translated",  
             "load_path": f"{attack_args.local_dataset_path}/laion2b_multi_translated/data/val",
-            "load_num": 3000,
+            "load_num": TOTAL_NUM,
             "split": "val",
         },
     ]
@@ -222,12 +230,32 @@ if __name__ == "__main__":
     dataloaders2 = []
     for config in dataset_configs_2:
         temp_output_dir = f"{OUTPUT_ROOT_PATH}/output/{config['dataset']}/{attack_args.model_name}/"
+        if config['dataset'] == dataset_config_1['dataset']: # dataset1 is current hold-out dataset2
+            # exclude dataset1 indices
+            exclude_indices = dataset1_indices 
+            config['load_num'] = TOTAL_NUM - len(exclude_indices)
+            # save excluded hold-out dataset1 as a subset
+            metadata_list = []
+            for index in exclude_indices:
+                metadata_list.append({
+                    'source_dataset': dataset_config_1['dataset'],
+                    'original_index': int(index),
+                })
+            excluded_ds_name = f"D_hold_out_{dataset_config_1['dataset']}_sub"
+            output_file = os.path.join(attack_args.local_dataset_path, excluded_ds_name, "metadata", f"meta_{excluded_ds_name}.json")
+            os.makedirs(os.path.dirname(output_file), exist_ok=True)
+            with open(output_file, 'w', encoding='utf-8') as f:
+                json.dump(metadata_list, f, indent=4)
+            print(f"Saved {len(metadata_list)} samples metadata to {output_file}")
+        else: 
+            exclude_indices = None
         dataloader, _ = create_dataset_dataloader(temp_output_dir,
                                                    config,
                                                    tokenizer,
                                                    224,
                                                    64,
-                                                   need_save=False)
+                                                   need_save=False,
+                                                   exclude_indices=exclude_indices)
         dataloaders2.append((dataloader, config['dataset'], config['load_path'], config['split']))
 
     # get TARGET_NUM images from Q = {Q1, Q2, Q3}

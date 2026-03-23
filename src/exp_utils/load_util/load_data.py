@@ -29,6 +29,7 @@ class ImageDS(Dataset):
         tokenizer,
         img_resolution,
         need_save=False,
+        exclude_indices=None,
     ):
         self.output_dir = output_dir
         self.dataset_config = dataset_config
@@ -36,6 +37,7 @@ class ImageDS(Dataset):
         self.tokenizer = tokenizer
         self.data = []
         self.img_resolution = img_resolution
+        self.exclude_indices = exclude_indices if exclude_indices is not None else set()
         self.transform = tfms.Compose([
             tfms.ToTensor(),
             tfms.Normalize([0.5], [0.5]),
@@ -77,10 +79,17 @@ class ImageDS(Dataset):
         with open(caption_path, 'r', encoding='utf-8') as meta_f:
             metadata = [json.loads(line.strip()) for line in meta_f]
 
-        assert DATASET_CONFIG['load_num'] <= len(image_name_list)
-        
         global_random.seed(attack_args.global_seed)
-        image_name_list = global_random.sample(image_name_list, DATASET_CONFIG['load_num'])
+        
+        available_image_names = []
+        for image_name in image_name_list:
+            index = int(image_name.split(".")[0])
+            if str(index) not in self.exclude_indices:
+                available_image_names.append(image_name)
+        
+        assert DATASET_CONFIG['load_num'] <= len(available_image_names), f"Not enough available samples, need {DATASET_CONFIG['load_num']}, only have {len(available_image_names)}"
+        
+        image_name_list = global_random.sample(available_image_names, DATASET_CONFIG['load_num'])
         
         for i, image_name in tqdm(enumerate(image_name_list), desc="loading dataset...", total=len(image_name_list)):
             image_path = os.path.join(load_path, image_name)
@@ -221,11 +230,11 @@ def collate_fn(examples):
     prompts = [example["prompt"] for example in examples]
     return {"image": image, "input_ids": input_ids, "index": indexes, "prompt": prompts}
 
-def create_dataset_dataloader(output_dir, dataset_config, tokenizer, img_resolution, batch_size=1, need_save=False):
+def create_dataset_dataloader(output_dir, dataset_config, tokenizer, img_resolution, batch_size=1, need_save=False, exclude_indices=None):
     """
         Create a DataLoader for image and prompt dataset
     """
-    dataset = ImageDS(output_dir, dataset_config, tokenizer, img_resolution, need_save)
+    dataset = ImageDS(output_dir, dataset_config, tokenizer, img_resolution, need_save, exclude_indices=exclude_indices)
     dataloader = DataLoader(dataset, batch_size=batch_size, collate_fn=collate_fn, shuffle=False)
     return dataloader, dataset
 
