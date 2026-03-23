@@ -112,7 +112,61 @@ def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
             print(f"{scores_file} already exists, skipping inference.")
             with open(scores_file, "r", encoding='utf-8') as f: 
                 scores = json.load(f)
-
+    elif method == "gradient_maskingmi":
+        print("Executing GradientMaskingMI...")
+        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+                                   f"gradient_maskingmi_scores_{split}.json")
+        if not os.path.exists(scores_file):
+            src_path = os.path.join(current_dir, "exp_utils/mi_util/gradient_maskingmi_src")
+            if src_path not in sys.path: sys.path.insert(0, src_path)
+            from exp_utils.mi_util.gradient_maskingmi_src.gradient_maskingmi import execute_gradient_maskingmi_attack
+            
+            scores = execute_gradient_maskingmi_attack(dataloader=dataloader, pipe=pipe)
+            
+            os.makedirs(os.path.dirname(scores_file), exist_ok=True)
+            with open(scores_file, "w", encoding='utf-8') as f: 
+                json.dump(scores, f)
+        else:
+            print(f"{scores_file} already exists, skipping inference.")
+            with open(scores_file, "r", encoding='utf-8') as f: 
+                scores = json.load(f)
+    elif method == "multiple_lossmi":
+        print("Executing MultipleLossMI...")
+        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+                                   f"multiple_lossmi_scores_{split}.json")
+        if not os.path.exists(scores_file):
+            src_path = os.path.join(current_dir, "exp_utils/mi_util/multiple_lossmi_src")
+            if src_path not in sys.path: sys.path.insert(0, src_path)
+            from exp_utils.mi_util.multiple_lossmi_src.multiple_lossmi import execute_multiple_lossmi_attack
+            
+            scores = execute_multiple_lossmi_attack(dataloader=dataloader, pipe=pipe)
+            
+            os.makedirs(os.path.dirname(scores_file), exist_ok=True)
+            with open(scores_file, "w", encoding='utf-8') as f: 
+                json.dump(scores, f)
+        else:
+            print(f"{scores_file} already exists, skipping inference.")
+            with open(scores_file, "r", encoding='utf-8') as f: 
+                scores = json.load(f)
+    elif method == "noise_optimmi":
+        print("Executing NoiseOptimMI...")
+        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+                                   f"noise_optimmi_scores_{split}.json")
+        if not os.path.exists(scores_file):
+            src_path = os.path.join(current_dir, "exp_utils/mi_util/noise_optimmi_src")
+            if src_path not in sys.path: sys.path.insert(0, src_path)
+            from exp_utils.mi_util.noise_optimmi_src.noise_optimmi import execute_noise_optimmi_attack
+            
+            scores = execute_noise_optimmi_attack(dataloader=dataloader, pipe=pipe)
+            
+            os.makedirs(os.path.dirname(scores_file), exist_ok=True)
+            with open(scores_file, "w", encoding='utf-8') as f: 
+                json.dump(scores, f)
+        else:
+            print(f"{scores_file} already exists, skipping inference.")
+            with open(scores_file, "r", encoding='utf-8') as f: 
+                scores = json.load(f)
+    
     # elif method == "hintmi":
     #     print("Executing HintMI...")
     #     scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
@@ -171,7 +225,7 @@ def extract_features_for_dataset(dataset_config, pipe, feat_dict_path):
     print(f"Extracting features for dataset: {dataset_name}")
     print(f"{'='*60}")
     
-    # Load the dataset
+    # load the dataset
     _, ds = create_dataset_dataloader(
         output_dir=None, 
         dataset_config=dataset_config,
@@ -181,18 +235,24 @@ def extract_features_for_dataset(dataset_config, pipe, feat_dict_path):
     
     dataloader = get_img_dataLoader(ds)
     
-    # Collect original indices
+    # collect original indices
     original_indices = []
     for batch in dataloader:
         original_indices.extend(batch['index'])
     original_indices = [int(idx) for idx in original_indices]
     
-    # Extract Features for all methods
+    # extract Features for all methods
     features_list = []
     
     methods = [
-        ("secmi", ""), ("naivelossmi", ""), ("piami", ""), 
-        ("structuralmi", "ssim"), ("rediffusemi", "ssim"), 
+        ("secmi", ""), 
+        ("naivelossmi", ""), 
+        ("piami", ""), 
+        ("structuralmi", "ssim"), 
+        ("rediffusemi", "ssim"), 
+        ("gradient_maskingmi", ""), 
+        ("multiple_lossmi", ""), 
+        ("noise_optimmi", ""),
         # ("hintmi", "ssim"), ("hintmi", "ssim_center"), 
         # ("hintmi", "ssim_entropy"), ("semansim", "cos_sim")
     ]
@@ -201,16 +261,16 @@ def extract_features_for_dataset(dataset_config, pipe, feat_dict_path):
         scores = exec_mia(dataset_name, method, pipe, dataloader, choice)
         features_list.append(convert2tensor32(scores).unsqueeze(1))
     
-    # Concat features
+    # concat features
     features_full = torch.cat(features_list, dim=1)
     
-    # Create feature dict: {unique_identifier: feature_tensor}
+    # create feature dict: {unique_identifier: feature_tensor}
     features_dict = {}
     for pos, original_idx in enumerate(original_indices):
         unique_id = f"{dataset_name}_{original_idx}"
         features_dict[unique_id] = features_full[pos]
     
-    # Save feature dict
+    # save feature dict
     assert os.path.exists(os.path.dirname(feat_dict_path)), f"Feature dict path {feat_dict_path} does not exist!"
     torch.save(features_dict, feat_dict_path)
     print(f"Successfully saved features dict for {dataset_name} to {feat_dict_path}")
@@ -221,7 +281,7 @@ if __name__ == "__main__":
     FEATURE_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "offline_features")
     os.makedirs(FEATURE_OUTPUT_DIR, exist_ok=True)
     
-    # The five original datasets
+    # original datasets
     dataset_names = [
         "commoncatalog_cc_by",
         "laion_aesthetics_v2_5p0",
@@ -230,11 +290,11 @@ if __name__ == "__main__":
         "nocaps"
     ]
     
-    # Load pipeline once
+    # load pipeline once
     print("Loading pipeline for feature extraction...")
     pipe = txt2img_pipeline_select(base_model_id=attack_args.base_model_id, PIPE_TYPE=PIPE_TYPE)
     
-    # Process each dataset
+    # process each dataset
     for dataset_name in dataset_names:
         feat_dict_path = os.path.join(FEATURE_OUTPUT_DIR, f"{dataset_name}_{attack_args.model_name}_features_dict.pt")
         
@@ -242,7 +302,7 @@ if __name__ == "__main__":
             print(f"Feature dict for {dataset_name} already exists! Skipping.")
             continue
         
-        # Create dataset config
+        # create dataset config
         dataset_split = "train" if dataset_name in ["commoncatalog_cc_by", "laion_aesthetics_v2_5p0"] else "val"
         dataset_config = {
             "dataset": dataset_name,
@@ -251,7 +311,7 @@ if __name__ == "__main__":
             "split": dataset_split,
         }
         
-        # Extract features for this dataset
+        # extract features for this dataset
         extract_features_for_dataset(dataset_config, pipe, feat_dict_path)
     
     print("\n" + "="*60)

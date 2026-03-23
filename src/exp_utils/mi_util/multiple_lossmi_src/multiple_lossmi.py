@@ -17,12 +17,24 @@ from exp_utils.dataset_process_util.img_preprocess import get_embeded_prompt, ge
 
 
 def execute_attack_step(pipe, x_0_latents, prompt_embeds, encode_prompt_addtions, timesteps, device):
+    """
+    Compute denoising loss at multiple different timesteps
+    Training samples will have lower denoising loss across multiple timesteps
+    
+    Returns:
+        Negative loss values (larger_is_member=True)
+    """
     bs = x_0_latents.shape[0]
+    # generate random noise
     noise = torch.randn_like(x_0_latents).to(device)
     losses = []
+    
     for timestep in timesteps:
+        # add noise to x_0 up to timestep t to get x_t
         t_input_for_xt = timestep.unsqueeze(0)
         x_t = pipe.scheduler.add_noise(x_0_latents, noise, t_input_for_xt)
+        
+        # predict noise at timestep t
         t_input_for_unet = timestep.expand(x_t.shape[0])
         noise_pred = pipe.unet(**get_unet_kwargs(
             pipe=pipe, 
@@ -31,18 +43,30 @@ def execute_attack_step(pipe, x_0_latents, prompt_embeds, encode_prompt_addtions
             timestep=t_input_for_unet,
             encoder_hidden_states=prompt_embeds,
             return_dict=False))[0]
+        
+        # compute L2 distance between predicted noise and true noise
         loss = torch.norm(
             noise_pred.reshape(bs, -1) - noise.reshape(bs, -1), dim=-1, p=2
         ).cpu()
+        
         losses.append(loss)
+    
+    # stack losses from all timesteps
     losses = torch.stack(losses, dim=1).unsqueeze(2)
+    
+    # larger_is_member=True
     return -losses.detach().cpu().numpy()
 
 
 def execute_multiple_lossmi_attack(dataloader, pipe):
     all_scores = []
-    timesteps = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900]
-    n_repetitions = 5
+    # from 0 to 900, every 100 timesteps, 10 timesteps total
+    # timesteps = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900]
+    timesteps = [0, 200, 400, 600, 800, ] # reduce cost
+    # average over 5 repetitions
+    # n_repetitions = 5
+    n_repetitions = 4
+    
     with tqdm(range(len(dataloader)), desc="Execute multiple_lossmi attack") as tqdm_bar:
         for batch in dataloader:
             index, prompt, input_image = batch['index'][0], batch['prompt'], batch['image']
@@ -50,13 +74,20 @@ def execute_multiple_lossmi_attack(dataloader, pipe):
             prompt_embeds, encode_prompt_addtions = get_embeded_prompt(pipe, prompt)
             device = x_0_latents.device
             timesteps_tensor = torch.tensor(timesteps, device=device, dtype=torch.long)
+            
             repetition_scores = []
+            # repeat n_repetitions times, each with different random noise
             for _ in range(n_repetitions):
                 scores = execute_attack_step(pipe, x_0_latents, prompt_embeds, encode_prompt_addtions, timesteps_tensor, device)
                 repetition_scores.append(scores)
+            
+            # average results from multiple repetitions
             repetition_scores = np.array(repetition_scores)
             all_scores.append(repetition_scores.mean(axis=0))
+            
             tqdm_bar.update(1)
+    
+    # average scores across all timesteps and all samples
     return np.concatenate(all_scores, axis=0).mean(axis=(1, 2)).tolist()
 
 

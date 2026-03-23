@@ -18,11 +18,25 @@ from exp_utils.dataset_process_util.img_preprocess import get_embeded_prompt, ge
 
 
 def obj(perturbations, B, latents_noised, prompt_embeds, encode_prompt_addtions, timestep, noise, pipe, device):
+    """
+    Objective function to be minimized by the optimizer:
+    computes prediction loss after applying perturbation
+    To find a small perturbation δ such that x_t + δ allows the model to predict noise closer to the true noise
+    For training samples, the model has better memorization, so only a small perturbation is needed to greatly improve prediction
+    For non-training samples, a larger perturbation may be needed to achieve the same effect
+
+    Returns:
+        loss: Current loss value
+        gradient: Gradient of loss w.r.t. perturbation
+    """
     perturbations = torch.from_numpy(perturbations).requires_grad_(True)
+    
+    # add perturbation to get input x_t + δ
     input_latents = latents_noised + perturbations.reshape(*latents_noised.shape)
     input_latents = input_latents.to(device).float()
     noise = noise.to(device).float()
     
+    # predict noise at timestep t
     t_input_for_unet = timestep.expand(input_latents.shape[0])
     noise_pred = pipe.unet(**get_unet_kwargs(
         pipe=pipe, 
@@ -32,24 +46,38 @@ def obj(perturbations, B, latents_noised, prompt_embeds, encode_prompt_addtions,
         encoder_hidden_states=prompt_embeds,
         return_dict=False))[0]
     
+    # compute L2 loss
     loss = torch.norm(
         noise_pred.reshape(B, -1) - noise.reshape(B, -1), dim=-1, p=2
     ).mean()
+    
+    # backward pass to get gradient of loss w.r.t. perturbations
     loss.backward()
     gradient = perturbations.grad.view(-1)
     
+    # return loss value and gradient 
     return loss.item(), gradient.cpu().numpy()
 
 
 def execute_attack_step(pipe, x_0_latents, prompt_embeds, encode_prompt_addtions, timestep, max_iter, device):
+    """
+    Use L-BFGS-B optimizer to find the perturbation that minimizes prediction loss
+    For training samples, the model can find optimal perturbation faster, and the final perturbation has smaller L2 norm
+
+    Returns:
+        Negative loss and perturbation norm (larger_is_member=True)
+    """
     bs = x_0_latents.shape[0]
     noise = torch.randn_like(x_0_latents).to(device)
+    
+    # add noise to x_0 to get x_t
     t_input_for_xt = timestep.unsqueeze(0)
     latents_noised = pipe.scheduler.add_noise(x_0_latents, noise, t_input_for_xt)
     
+    # use L-BFGS-B optimizer to minimize objective function
     out = minimize(
         obj,
-        torch.zeros_like(latents_noised).cpu().reshape(-1).numpy(),
+        torch.zeros_like(latents_noised).cpu().reshape(-1).numpy(), # initial perturbations
         args=(
             bs,
             latents_noised.cpu(),
@@ -60,13 +88,15 @@ def execute_attack_step(pipe, x_0_latents, prompt_embeds, encode_prompt_addtions
             pipe,
             device,
         ),
-        method="L-BFGS-B",
-        jac=True,
+        method="L-BFGS-B",  # Quasi-Newton method with box constraints
+        jac=True,           # compute gradients ourselves
         options={"maxiter": max_iter},
     )
     
+    # get optimized perturbation
     perturbations = torch.from_numpy(out.x.reshape(*latents_noised.shape)).to(device)
     
+    # re-predict noise using optimized input
     t_input_for_unet = timestep.expand((latents_noised + perturbations).shape[0])
     noise_pred = pipe.unet(**get_unet_kwargs(
         pipe=pipe, 
@@ -76,12 +106,14 @@ def execute_attack_step(pipe, x_0_latents, prompt_embeds, encode_prompt_addtions
         encoder_hidden_states=prompt_embeds,
         return_dict=False))[0]
     
+    # compute two features
     loss = torch.norm(
         noise_pred.reshape(bs, -1) - noise.reshape(bs, -1), dim=-1, p=2
     ).cpu()
     
     l2_perturbations = torch.norm(perturbations.view(bs, -1), dim=-1, p=2).cpu()
     
+    # return negative values for larger_is_member=True
     return -torch.stack([loss, l2_perturbations], dim=1).unsqueeze(1).detach().cpu().numpy()
 
 
@@ -99,6 +131,8 @@ def execute_noise_optimmi_attack(dataloader, pipe):
             scores = execute_attack_step(pipe, x_0_latents, prompt_embeds, encode_prompt_addtions, timestep_tensor[0], max_iter, device)
             all_scores.append(scores)
             tqdm_bar.update(1)
+    
+    # average both loss and perturbation norm features
     return np.concatenate(all_scores, axis=0).mean(axis=(1, 2)).tolist()
 
 
