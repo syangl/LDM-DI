@@ -296,8 +296,8 @@ if __name__ == "__main__":
     
     # original datasets
     dataset_names = [
-        "commoncatalog_cc_by",
-        "laion_aesthetics_v2_5p0",
+        # "commoncatalog_cc_by", # used for commoncanvas
+        "laion_aesthetics_v2_5p0", # used for stable-diffusion kandinsky
         "coco_2017_val",
         "laion2b_multi_translated",
         "nocaps"
