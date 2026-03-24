@@ -75,6 +75,10 @@ def execute_attack_step(pipe, x_0_latents, prompt_embeds, encode_prompt_addtions
         ).cpu()
         
         l2_perturbations = torch.norm(perturbation.view(bs, -1), dim=-1, p=2).cpu()
+        
+        # replace NaN values before returning
+        loss = torch.nan_to_num(loss, nan=0.0, posinf=1e6, neginf=-1e6)
+        l2_perturbations = torch.nan_to_num(l2_perturbations, nan=0.0, posinf=1e6, neginf=-1e6)
     
     # return negative values for larger_is_member=True
     return -torch.stack([loss, l2_perturbations], dim=1).unsqueeze(1).detach().cpu().numpy()
@@ -105,7 +109,16 @@ def execute_noise_optimmi_attack(dataloader, pipe):
     # return a 2d list where each row has two features [loss, l2]
     result = []
     for loss, l2 in zip(all_scores_loss, all_scores_l2):
-        result.append([loss.item(), l2.item()])
+        loss_val = loss.item()
+        l2_val = l2.item()
+        
+        # Replace NaN with reasonable defaults
+        if np.isnan(loss_val):
+            loss_val = 0.0
+        if np.isnan(l2_val):
+            l2_val = 0.0
+            
+        result.append([loss_val, l2_val])
     
     return result
 
