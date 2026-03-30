@@ -24,7 +24,7 @@ def create_parser():
 
     pipeline_group.add_argument("--model_name",
                                 type=str,
-                                default="commoncanvas-s-c",
+                                default="stable-diffusion-v1p5",
                                 choices=[
                                     "stable-diffusion-v1p5",
                                     "commoncanvas-s-c",

@@ -296,7 +296,11 @@ if __name__ == "__main__":
     
     # original datasets
     dataset_names = [
-        # "commoncatalog_cc_by", # used for commoncanvas
+        "commoncatalog_cc_by", # used for commoncanvas
+        "coco_2017_val",
+        "laion2b_multi_translated",
+        "nocaps"
+    ] if attack_args.model_name == "commoncanvas-s-c" else [
         "laion_aesthetics_v2_5p0", # used for stable-diffusion kandinsky
         "coco_2017_val",
         "laion2b_multi_translated",
@@ -320,7 +324,7 @@ if __name__ == "__main__":
         dataset_config = {
             "dataset": dataset_name,
             "load_path": f"{attack_args.local_dataset_path}/{dataset_name}/data/{dataset_split}",
-            "load_num": attack_args.dataset_total_num,
+            "load_num": 1000 if dataset_name in ["commoncatalog_cc_by", "laion_aesthetics_v2_5p0"] else 3000,
             "split": dataset_split,
         }
         
