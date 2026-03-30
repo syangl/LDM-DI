@@ -8,11 +8,9 @@ from exp_utils.dataset_process_util.meta_feature_manager import create_loader
 import torch
 import numpy as np
 from tqdm import tqdm
-from scipy.stats import ttest_ind, combine_pvalues
+from scipy.stats import ttest_ind
 import json
 import matplotlib.pyplot as plt
-import time
-
 
 def feature_norm(features):
     features_mean = features.mean(dim=0, keepdim=True)
@@ -150,8 +148,6 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
         preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}_preds_{test_i}.json")
         
         print(f"\n--- Start Testing Pair {pair_idx} - Test {test_i} ---")
-        time_start = time.time()
-        
         # Generate exact permutation indices
         generator = torch.Generator().manual_seed(test_i)
         indices = torch.randperm(total_ds_len, generator=generator)
@@ -191,7 +187,6 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
         # Calculate Welch's t-statistic
         t_statistic = t_test(B_sus, B_hold_out)
         print(f"Result Pair {pair_idx} Test {test_i}: t={t_statistic:.4f}")
-        print(f"Time for experiment: {time.time() - time_start:.2f} seconds")
         
         results.append({
             "pair_idx": pair_idx,
