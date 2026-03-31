@@ -96,11 +96,11 @@ def three_sigma_threshold_calibration(base_t_stats):
     
     tau_3sigma = mean_t + 3 * std_t
     
-    tau_max = np.max(base_t_stats)
+    # tau_max = np.max(base_t_stats)
     
     return {
         "tau_3sigma": float(tau_3sigma),
-        "tau_max": float(tau_max)
+        # "tau_max": float(tau_max)
     }
 
 
@@ -129,7 +129,7 @@ def main():
     # Parameters
     K_BASE = 100
     SPLIT_TIMES = 20
-    QUANTILE_LEVEL = 0.95  # 95% quantile
+    # QUANTILE_LEVEL = 0.95  # 95% quantile
     
     RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "threshold_fpr")
     os.makedirs(RESULTS_OUTPUT_DIR, exist_ok=True)
@@ -192,10 +192,17 @@ def main():
         print("Error: No base12 data loaded")
         return
     
-    # Calculate threshold tau (95% quantile)
-    print(f"\nCalculating {QUANTILE_LEVEL*100}% quantile as threshold tau...")
-    tau = np.quantile(base12_t_stats, QUANTILE_LEVEL)
-    print(f"Threshold tau = {tau:.6f}")
+    # Calculate threshold tau (3-sigma rule)
+    print(f"\nCalculating threshold tau using 3-sigma rule...")
+    three_sigma_result = three_sigma_threshold_calibration(base12_t_stats)
+    tau = three_sigma_result["tau_3sigma"]
+    print(f"Threshold tau (3-sigma) = {tau:.6f}")
+    # print(f"Threshold tau (max of base12) = {three_sigma_result['tau_max']:.6f}")
+    
+    # Original 95% quantile calculation (kept for rollback)
+    # print(f"\nCalculating {QUANTILE_LEVEL*100}% quantile as threshold tau...")
+    # tau = np.quantile(base12_t_stats, QUANTILE_LEVEL)
+    # print(f"Threshold tau = {tau:.6f}")
     
     # Calculate FPR
     fpr = None
@@ -232,7 +239,8 @@ def main():
         "parameters": {
             "K_BASE": int(K_BASE),
             "SPLIT_TIMES": int(SPLIT_TIMES),
-            "QUANTILE_LEVEL": float(QUANTILE_LEVEL)
+            # "QUANTILE_LEVEL": float(QUANTILE_LEVEL),
+            "threshold_method": "3-sigma"
         },
         "base12_statistics": {
             "dataset1": base12_info['dataset1'] if base12_info else None,
@@ -242,6 +250,8 @@ def main():
             "max_t": float(np.max(base12_t_stats)),
             "mean_t": float(np.mean(base12_t_stats)),
             "std_t": float(np.std(base12_t_stats)),
+            "tau_3sigma": float(three_sigma_result["tau_3sigma"]),
+            # "tau_max": float(three_sigma_result["tau_max"]),
             "tau": float(tau)
         },
         "hold_hold_statistics": {
@@ -277,7 +287,8 @@ def main():
     print("\n" + "="*60)
     print("Summary")
     print("="*60)
-    print(f"  Threshold tau (95% quantile): {tau:.6f}")
+    print(f"  Threshold tau (3-sigma): {tau:.6f}")
+    # print(f"  Threshold tau (max of base12): {three_sigma_result['tau_max']:.6f}")
     if fpr is not None:
         print(f"  FPR on D_hold/D_hold: {fpr:.6f}")
     if tpr is not None:
