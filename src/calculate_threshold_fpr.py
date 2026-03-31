@@ -6,7 +6,7 @@ if current_dir not in sys.path:
 from exp_utils.config_util.attack_config import OUTPUT_ROOT_PATH
 import numpy as np
 import json
-from sklearn.metrics import roc_curve, auc
+
 
 def load_t_stats_from_dir(ttest_dir):
     """
@@ -51,44 +51,6 @@ def calculate_rejection_rate(t_stats, tau):
     num_rejections = np.sum(t_stats > tau)
     rejection_rate = num_rejections / len(t_stats) if len(t_stats) > 0 else 0.0
     return rejection_rate, num_rejections
-
-
-def calculate_roc_metrics(hold_hold_t_stats, sus_hold_t_stats, target_fpr_list=[0.01, 0.05, 0.1]):
-    """
-    Calculate ROC curve, AUC, and TPR at specific target FPRs
-    """
-    if len(hold_hold_t_stats) == 0 or len(sus_hold_t_stats) == 0:
-        return None
-    
-    # Combine scores and labels (0 = hold-hold = negative, 1 = sus-hold = positive)
-    scores = np.concatenate([hold_hold_t_stats, sus_hold_t_stats])
-    labels = np.concatenate([np.zeros(len(hold_hold_t_stats)), np.ones(len(sus_hold_t_stats))])
-    
-    # Calculate ROC curve
-    fpr, tpr, thresholds = roc_curve(labels, scores)
-    roc_auc = auc(fpr, tpr)
-    
-    # Fix Infinity in thresholds (replace with max score + 1)
-    max_score = np.max(scores)
-    thresholds = np.where(np.isinf(thresholds), max_score + 1.0, thresholds)
-    
-    # Calculate TPR at target FPRs
-    tpr_at_fpr = {}
-    for target_fpr in target_fpr_list:
-        # Find the first FPR that is >= target_fpr
-        idx = np.searchsorted(fpr, target_fpr)
-        if idx < len(fpr):
-            tpr_at_fpr[target_fpr] = tpr[idx]
-        else:
-            tpr_at_fpr[target_fpr] = tpr[-1]
-    
-    return {
-        "fpr": fpr.tolist(),
-        "tpr": tpr.tolist(),
-        "thresholds": thresholds.tolist(),
-        "auc": roc_auc,
-        "tpr_at_fpr": tpr_at_fpr
-    }
 
 
 def three_sigma_threshold_calibration(base_t_stats):
@@ -228,15 +190,6 @@ def main():
         print(f"Number of true rejections (t > tau): {num_true_rejections}")
         print(f"TPR: {tpr:.6f}")
     
-    # Calculate ROC metrics and TPR at low FPR
-    roc_metrics = None
-    if len(hold_hold_t_stats) > 0 and len(sus_hold_t_stats) > 0:
-        roc_metrics = calculate_roc_metrics(hold_hold_t_stats, sus_hold_t_stats)
-        print(f"\nAdvanced ROC Metrics:")
-        print(f"AUC: {roc_metrics['auc']:.6f}")
-        print(f"TPR at specific FPR:")
-        for fpr_level, tpr_level in roc_metrics['tpr_at_fpr'].items():
-            print(f"TPR@FPR={fpr_level:.3f}: {tpr_level:.6f}")
     
     # Save all results
     results_dict = {
@@ -280,7 +233,6 @@ def main():
             "num_true_rejections": int(num_true_rejections) if num_true_rejections is not None else None,
             "tpr": float(tpr) if tpr is not None else None
         },
-        "roc_metrics": roc_metrics
     }
     
     output_file = os.path.join(RESULTS_OUTPUT_DIR, "threshold_fpr_results.json")
@@ -297,10 +249,6 @@ def main():
         print(f"  FPR on D_hold/D_hold: {fpr:.6f}")
     if tpr is not None:
         print(f"  TPR on D_sus/D_hold: {tpr:.6f}")
-    if roc_metrics is not None:
-        print(f"  AUC: {roc_metrics['auc']:.6f}")
-        for fpr_level, tpr_level in roc_metrics['tpr_at_fpr'].items():
-            print(f"  TPR@FPR={fpr_level:.3f}: {tpr_level:.6f}")
     print("="*60)
 
 
