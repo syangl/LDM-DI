@@ -217,6 +217,22 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
     return results
 
 
+def is_hold_dataset(ds):
+    hold_datasets = ["coco_2017_val", "laion2b_multi_translated", "nocaps"]
+    return ds.startswith("D_hold_out_") or ds in hold_datasets
+
+
+def is_hold_hold_pair(ds1, ds2):
+    return is_hold_dataset(ds1) and is_hold_dataset(ds2)
+
+
+def is_sus_hold_pair(ds1, ds2):
+    has_sus = (not is_hold_dataset(ds1) and ds1 not in ["D_base_1", "D_base_2"])
+    has_sus = has_sus or (not is_hold_dataset(ds2) and ds2 not in ["D_base_1", "D_base_2"])
+    has_hold = is_hold_dataset(ds1) or is_hold_dataset(ds2)
+    return has_sus and has_hold
+
+
 if __name__ == "__main__":
     # Parameters
     SPLIT_TIMES = 20  # Number of repeated tests
@@ -262,12 +278,19 @@ if __name__ == "__main__":
                 print(f"\nError: Pair {pair_idx + 1} not found, stopping.")
                 break
     else:
-        # Single pair for sus + hold-out dataset
+        # Single pair for sus + hold-out dataset or hold + hold dataset
         try:
-            # **Note**: Use pair_idx=0 for non-base12 pairs
+            # Determine pair_idx based on dataset type
+            if is_hold_hold_pair(dataset1_name, dataset2_name):
+                pair_idx = "holdhold"
+            elif is_sus_hold_pair(dataset1_name, dataset2_name):
+                pair_idx = "sushold"
+            else:
+                raise ValueError(f"Unknown dataset pair type: {dataset1_name} vs {dataset2_name}")
+            
             pair_results = process_single_pair(
                 loader, 
-                0, 
+                pair_idx, 
                 dataset1_name, 
                 dataset2_name,
                 MODEL_OUTPUT_DIR, 

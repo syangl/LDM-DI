@@ -6,8 +6,6 @@ if current_dir not in sys.path:
 from exp_utils.config_util.attack_config import OUTPUT_ROOT_PATH
 import numpy as np
 import json
-import argparse
-
 
 def load_t_stats_from_dir(ttest_dir):
     """
@@ -25,6 +23,7 @@ def load_t_stats_from_dir(ttest_dir):
     
     for pair_dir in pair_dirs:
         pair_idx = pair_dir.split("_")[1]
+        
         ttest_file_path = os.path.join(ttest_dir, pair_dir, f"ttest_pair_{pair_idx}_results.json")
         
         if not os.path.exists(ttest_file_path):
