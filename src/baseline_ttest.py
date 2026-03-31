@@ -56,7 +56,7 @@ def get_p_value(members_scores: np.ndarray, nonmembers_scores: np.ndarray, membe
         t_statistic > 0 and not members_lower
     )
 
-    return p_value, is_correct_order
+    return p_value, is_correct_order, t_statistic
 
 
 def cdi_process_data(members: torch.Tensor, nonmembers: torch.Tensor, test_i: int):
@@ -110,7 +110,7 @@ def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT
     members_scores_np = members_scores.cpu().numpy()
     nonmembers_scores_np = nonmembers_scores.cpu().numpy()
     
-    p_value, is_correct_order = get_p_value(members_scores_np, nonmembers_scores_np, members_lower=False)
+    p_value, is_correct_order, t_statistic = get_p_value(members_scores_np, nonmembers_scores_np, members_lower=False)
     
     print(f"CDI Result - p-value: {p_value:.6f}, is_correct_order: {is_correct_order}")
     
@@ -119,6 +119,7 @@ def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT
         "dataset1": dataset1_name,
         "dataset2": dataset2_name,
         "p_value": float(p_value),
+        "t_statistic": float(t_statistic),
         "is_correct_order": is_correct_order,
         "members_scores": members_scores_np.tolist(),
         "nonmembers_scores": nonmembers_scores_np.tolist()
