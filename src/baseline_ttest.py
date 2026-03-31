@@ -59,9 +59,9 @@ def get_p_value(members_scores: np.ndarray, nonmembers_scores: np.ndarray, membe
     return p_value, is_correct_order
 
 
-def cdi_process_data(members: torch.Tensor, nonmembers: torch.Tensor):
+def cdi_process_data(members: torch.Tensor, nonmembers: torch.Tensor, test_i: int):
     members_indices = np.arange(len(members))    
-    kf = KFold(n_splits=5, shuffle=True, random_state=0)
+    kf = KFold(n_splits=5, shuffle=True, random_state=test_i)
     members_scores, nonmembers_scores = [], []
 
     for train_idx, test_idx in kf.split(members_indices):
@@ -92,20 +92,20 @@ def cdi_process_data(members: torch.Tensor, nonmembers: torch.Tensor):
     return members_scores, nonmembers_scores
 
 
-def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, CDI_OUTPUT_DIR):
+def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT_DIR):
     print(f"\n{'='*60}")
-    print(f"Processing Pair {pair_idx}: {dataset1_name} vs {dataset2_name} (CDI baseline)")
+    print(f"Processing Test {test_i}: {dataset1_name} vs {dataset2_name} (CDI baseline)")
     print(f"{'='*60}")
     
-    ds1_feats, ds2_feats = loader.load_dataset_pair_features(dataset1_name, dataset2_name, pair_idx)
+    ds1_feats, ds2_feats = loader.load_dataset_pair_features(dataset1_name, dataset2_name, test_i)
     
     print(f"  DS1 features shape: {ds1_feats.shape}")
     print(f"  DS2 features shape: {ds2_feats.shape}")
     
-    cdi_result_file_path = os.path.join(CDI_OUTPUT_DIR, f"cdi_pair_{pair_idx}_results.json")
+    cdi_result_file_path = os.path.join(CDI_OUTPUT_DIR, f"cdi_test_{test_i}_results.json")
     
     print(f"Running CDI score computation...")
-    members_scores, nonmembers_scores = cdi_process_data(ds1_feats, ds2_feats)
+    members_scores, nonmembers_scores = cdi_process_data(ds1_feats, ds2_feats, test_i)
     
     members_scores_np = members_scores.cpu().numpy()
     nonmembers_scores_np = nonmembers_scores.cpu().numpy()
@@ -115,7 +115,7 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, CDI_OUTP
     print(f"CDI Result - p-value: {p_value:.6f}, is_correct_order: {is_correct_order}")
     
     result = {
-        "pair_idx": pair_idx,
+        "test_i": test_i,
         "dataset1": dataset1_name,
         "dataset2": dataset2_name,
         "p_value": float(p_value),
@@ -126,11 +126,13 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, CDI_OUTP
     
     with open(cdi_result_file_path, "w", encoding='utf-8') as f:
         json.dump(result, f, indent=4)
-    
+    print(f"\nSaved to {cdi_result_file_path}")
     return result
 
 
 if __name__ == "__main__":
+    SPLIT_TIMES = 20  # Number of repeated tests
+    
     dataset1_name = attack_args.used_datasets[0]
     dataset2_name = attack_args.used_datasets[1]
     
@@ -141,27 +143,24 @@ if __name__ == "__main__":
     loader = create_loader()
     
     print(f"Starting CDI baseline on dataset pair: {dataset1_name} vs {dataset2_name}")
-    try:
-        result = process_single_pair(
-            loader, 
-            0, 
-            dataset1_name, 
-            dataset2_name,
-            CDI_OUTPUT_DIR
-        )
-    except FileNotFoundError as e:
-            print(f"\nError: {e}")
-    
-    result_path = os.path.join(CDI_OUTPUT_DIR, f"cdi_{dataset1_name}_{dataset2_name}_result.json")
-    with open(result_path, "w", encoding='utf-8') as f:
-        json.dump(result, f, indent=4)
-    print(f"\nSaved to {result_path}")
-        
+    all_results = []
+    for test_i in range(SPLIT_TIMES):
+        try:
+            result = process_single_pair(
+                        loader, 
+                        test_i, 
+                        dataset1_name, 
+                        dataset2_name,
+                        CDI_OUTPUT_DIR
+                    )
+            all_results.append(result)
+        except FileNotFoundError as e:
+                print(f"\nError: {e}")
+     
     print(f"\nSummary Statistics:")
-    print(f"  Total pairs processed: {len(result)}")
-    if len(result) > 0:
-        p_values = [r['p_value'] for r in result]
-        correct_orders = [r['is_correct_order'] for r in result]
+    if all_results:
+        p_values = [result['p_value'] for result in all_results]
+        correct_orders = [result['is_correct_order'] for result in all_results]
         print(f"  Min p-value: {np.min(p_values):.6f}")
         print(f"  Max p-value: {np.max(p_values):.6f}")
         print(f"  Mean p-value: {np.mean(p_values):.6f}")
