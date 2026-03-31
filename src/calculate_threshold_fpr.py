@@ -75,13 +75,6 @@ def is_sus_hold_pair(ds1, ds2):
 
 def main():
     DEFAULT_TTEST_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
-    
-    parser = argparse.ArgumentParser(description="Calculate threshold tau, TPR, and FPR from t-test results")
-    parser.add_argument("--ttest_dir", type=str, default=DEFAULT_TTEST_DIR, 
-                        help=f"Directory containing t-test results (default: {DEFAULT_TTEST_DIR})")
-    
-    args = parser.parse_args()
-    
     # Parameters
     K_BASE = 100
     SPLIT_TIMES = 20
@@ -95,8 +88,8 @@ def main():
     print("="*60)
     
     # Default to single directory mode
-    print(f"\nReading t-test results from: {args.ttest_dir}")
-    all_t_stats, all_dataset_info = load_t_stats_from_dir(args.ttest_dir)
+    print(f"\nReading t-test results from: {DEFAULT_TTEST_DIR}")
+    all_t_stats, all_dataset_info = load_t_stats_from_dir(DEFAULT_TTEST_DIR)
     
     if len(all_t_stats) == 0:
         print("Error: No t-test results found!")
