@@ -93,6 +93,7 @@ def train_model(sus_features, sus_label, hold_out_features, hold_out_label, pair
     plt.tick_params(axis='both', which='both', direction="in")
     plt.tight_layout()
     plt.plot(loss_list)
+    os.makedirs(os.path.dirname(save_file), exist_ok=True)
     plt.savefig(os.path.join(MODEL_OUTPUT_DIR, f"pair_{pair_idx}", f"training_loss_{pair_idx}_{test_i}.png"))
     plt.close()
 
@@ -177,6 +178,7 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
         B_sus = preds[label_B == 1].cpu().numpy()
         B_hold_out = preds[label_B == 0].cpu().numpy()
         
+        os.makedirs(os.path.dirname(preds_file_path), exist_ok=True)
         with open(preds_file_path, "w", encoding='utf-8') as f:
             json.dump({
                 "B_sus_preds": B_sus.tolist(),
@@ -208,7 +210,7 @@ if __name__ == "__main__":
     # Parameters
     SPLIT_TIMES = 20  # Number of repeated tests
     SPLIT_DS_LEN = attack_args.dataset_total_num // 2
-    K_BASE = 100  # Total pairs to process for base12
+    K_BASE = 500  # Total pairs to process for base12
     
     # Get dataset pair from attack_args
     dataset1_name = attack_args.used_datasets[0]
@@ -241,7 +243,7 @@ if __name__ == "__main__":
                     dataset2_name,
                     MODEL_OUTPUT_DIR, 
                     TTest_OUTPUT_DIR,
-                    SPLIT_TIMES, 
+                    1, # ensure only K_BASE control the number of tests
                     SPLIT_DS_LEN
                 )
                 all_pair_results.extend(pair_results)
