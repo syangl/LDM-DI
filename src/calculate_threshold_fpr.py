@@ -19,12 +19,17 @@ def load_t_stats_from_dir(ttest_dir):
     if not os.path.exists(ttest_dir):
         return np.array([]), []
     
-    # Look for all ttest_pair_* files
-    pair_files = [f for f in os.listdir(ttest_dir) if f.startswith("ttest_pair_") and f.endswith("_results.json")]
-    pair_files.sort()
+    # Look for all pair_* subdirectories
+    pair_dirs = [d for d in os.listdir(ttest_dir) if d.startswith("pair_") and os.path.isdir(os.path.join(ttest_dir, d))]
+    pair_dirs.sort()
     
-    for filename in pair_files:
-        ttest_file_path = os.path.join(ttest_dir, filename)
+    for pair_dir in pair_dirs:
+        pair_idx = pair_dir.split("_")[1]
+        ttest_file_path = os.path.join(ttest_dir, pair_dir, f"ttest_pair_{pair_idx}_results.json")
+        
+        if not os.path.exists(ttest_file_path):
+            continue
+            
         with open(ttest_file_path, "r", encoding='utf-8') as f:
             results = json.load(f)
             for result in results:
@@ -171,14 +176,14 @@ def main():
     # Save all results
     results_dict = {
         "parameters": {
-            "K_BASE": K_BASE,
-            "SPLIT_TIMES": SPLIT_TIMES,
-            "QUANTILE_LEVEL": QUANTILE_LEVEL
+            "K_BASE": int(K_BASE),
+            "SPLIT_TIMES": int(SPLIT_TIMES),
+            "QUANTILE_LEVEL": float(QUANTILE_LEVEL)
         },
         "base12_statistics": {
             "dataset1": base12_info['dataset1'] if base12_info else None,
             "dataset2": base12_info['dataset2'] if base12_info else None,
-            "num_t_stats": len(base12_t_stats),
+            "num_t_stats": int(len(base12_t_stats)),
             "min_t": float(np.min(base12_t_stats)),
             "max_t": float(np.max(base12_t_stats)),
             "mean_t": float(np.mean(base12_t_stats)),
@@ -188,24 +193,24 @@ def main():
         "hold_hold_statistics": {
             "dataset1": hold_hold_info['dataset1'] if hold_hold_info else None,
             "dataset2": hold_hold_info['dataset2'] if hold_hold_info else None,
-            "num_t_stats": len(hold_hold_t_stats),
+            "num_t_stats": int(len(hold_hold_t_stats)),
             "min_t": float(np.min(hold_hold_t_stats)) if len(hold_hold_t_stats) > 0 else None,
             "max_t": float(np.max(hold_hold_t_stats)) if len(hold_hold_t_stats) > 0 else None,
             "mean_t": float(np.mean(hold_hold_t_stats)) if len(hold_hold_t_stats) > 0 else None,
             "std_t": float(np.std(hold_hold_t_stats)) if len(hold_hold_t_stats) > 0 else None,
-            "num_false_rejections": num_false_rejections,
-            "fpr": fpr
+            "num_false_rejections": int(num_false_rejections) if num_false_rejections is not None else None,
+            "fpr": float(fpr) if fpr is not None else None
         },
         "sus_hold_statistics": {
             "dataset1": sus_hold_info['dataset1'] if sus_hold_info else None,
             "dataset2": sus_hold_info['dataset2'] if sus_hold_info else None,
-            "num_t_stats": len(sus_hold_t_stats),
+            "num_t_stats": int(len(sus_hold_t_stats)),
             "min_t": float(np.min(sus_hold_t_stats)) if len(sus_hold_t_stats) > 0 else None,
             "max_t": float(np.max(sus_hold_t_stats)) if len(sus_hold_t_stats) > 0 else None,
             "mean_t": float(np.mean(sus_hold_t_stats)) if len(sus_hold_t_stats) > 0 else None,
             "std_t": float(np.std(sus_hold_t_stats)) if len(sus_hold_t_stats) > 0 else None,
-            "num_true_rejections": num_true_rejections,
-            "tpr": tpr
+            "num_true_rejections": int(num_true_rejections) if num_true_rejections is not None else None,
+            "tpr": float(tpr) if tpr is not None else None
         }
     }
     
