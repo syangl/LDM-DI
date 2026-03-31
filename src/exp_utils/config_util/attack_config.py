@@ -78,10 +78,10 @@ def create_parser():
             "D_base_2",
             
             # FPR group hold-out sets
-            "D_hold_out_coco_2017_val_sub", # random selected 1000 from COCO2017-val
-            "D_hold_out_coco_2017_val", # clip-knn filtered for COCO2017-val from three hold-out sets excluding 'D_hold_out_coco_2017_val_sub'
             "D_hold_out_laion2b_multi_translated_sub", # random selected 1000 from LAION-2B Multi Translated
             "D_hold_out_laion2b_multi_translated", # clip-knn filtered for LAION-2B Multi Translated from three hold-out sets excluding 'D_hold_out_laion2b_multi_translated_sub'
+            "D_hold_out_coco_2017_val_sub", # random selected 1000 from COCO2017-val
+            "D_hold_out_coco_2017_val", # clip-knn filtered for COCO2017-val from three hold-out sets excluding 'D_hold_out_coco_2017_val_sub'
             "D_hold_out_nocaps_sub", # random selected 1000 from NoCaps
             "D_hold_out_nocaps", # clip-knn filtered for NoCaps from three hold-out sets excluding 'D_hold_out_nocaps_sub'
         ],
