@@ -117,7 +117,7 @@ def split_datasets(df):
     source_map = {
         'coco_2017_val': 0.0,
         'nocaps': 1.0,
-        'aion2b_multi_translated': 2.0
+        'laion2b_multi_translated': 2.0
     }
     df['source_val'] = df['source_dataset'].map(source_map).fillna(1.5)
 
