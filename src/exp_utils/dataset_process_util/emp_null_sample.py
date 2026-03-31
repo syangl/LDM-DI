@@ -115,9 +115,9 @@ def split_datasets(df):
     df['clip_cluster'] = kmeans_clip.fit_predict(emb_matrix)
 
     source_map = {
-        'coco2017': 0.0,
+        'coco_2017_val': 0.0,
         'nocaps': 1.0,
-        'laion_multi': 2.0
+        'aion2b_multi_translated': 2.0
     }
     df['source_val'] = df['source_dataset'].map(source_map).fillna(1.5)
 
@@ -239,7 +239,7 @@ if __name__ == "__main__":
         os.path.join(attack_args.base_model_id, "tokenizer"))
 
     configs = {
-        'coco2017': {
+        'coco_2017_val': {
             "dataset": "coco_2017_val",
             "load_path": f"{attack_args.local_dataset_path}/coco_2017_val/data/val",
             "load_num": LOAD_NUM,
@@ -251,7 +251,7 @@ if __name__ == "__main__":
             "load_num": LOAD_NUM,
             "split": "val",
         },
-        'laion_multi': {
+        'laion2b_multi_translated': {
             "dataset": "laion2b_multi_translated",
             "load_path": f"{attack_args.local_dataset_path}/laion2b_multi_translated/data/val",
             "load_num": LOAD_NUM,
@@ -281,13 +281,13 @@ if __name__ == "__main__":
         print(f"\n--- Generating pair {pair_i + 1}/{NUM_PAIRS} ---")
         mixed_df_1, mixed_df_2 = split_datasets(prepared_df)
         
-        base1_file = os.path.join(OUTPUT_ROOT, f"pair_{pair_i}_base1.json")
-        base2_file = os.path.join(OUTPUT_ROOT, f"pair_{pair_i}_base2.json")
+        base1_file = os.path.join(OUTPUT_ROOT, f"pair_{pair_i + 1}_base1.json")
+        base2_file = os.path.join(OUTPUT_ROOT, f"pair_{pair_i + 1}_base2.json")
         
         save_metadata_only(mixed_df_1, base1_file)
-        save_metadata_only(mixed_df_2, base2_file)
+        save_metadata_only(mixed_df_2, base2_file)  
         
-        print(f"Saved pair {pair_i}: {base1_file}, {base2_file}")
+        print(f"Saved pair {pair_i + 1}: {base1_file}, {base2_file}")
     
     print(f"\nSuccessfully generated {NUM_PAIRS} base12 pairs in {OUTPUT_ROOT}")
 

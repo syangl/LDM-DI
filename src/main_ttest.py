@@ -47,12 +47,12 @@ def process_features(sus_feats_subset, hold_out_feats_subset):
     return sus_features_norm, sus_label, hold_out_features_norm, hold_out_label
 
 
-def train_model(sus_features, sus_label, hold_out_features, hold_out_label, test_i, MODEL_OUTPUT_DIR):
+def train_model(sus_features, sus_label, hold_out_features, hold_out_label, pair_idx, test_i, MODEL_OUTPUT_DIR):
     model = torch.nn.Sequential(
         torch.nn.Linear(sus_features.shape[1], 1),
         torch.nn.Sigmoid()
     )
-    save_file = os.path.join(MODEL_OUTPUT_DIR, f"model_{test_i}.pt")
+    save_file = os.path.join(MODEL_OUTPUT_DIR, f"pair_{pair_idx}", f"model_{pair_idx}_{test_i}.pt")
     if os.path.exists(save_file):
         print(f"{save_file} already exists, skipping training.")
         model.load_state_dict(torch.load(save_file))
@@ -65,11 +65,11 @@ def train_model(sus_features, sus_label, hold_out_features, hold_out_label, test
     all_labels = torch.cat((sus_label, hold_out_label), dim=0)
     total_num = all_features.size(0)
 
-    print(f"Start training model {test_i}...")
+    print(f"Start training model {pair_idx}_{test_i}...")
     epochs = 1000
     loss_list = []
     model.train()
-    with tqdm(range(epochs), desc=f"Training model {test_i}", leave=False) as tqdm_bar:
+    with tqdm(range(epochs), desc=f"Training model {pair_idx}_{test_i}", leave=False) as tqdm_bar:
         for epoch in range(epochs):
             indices = torch.randperm(total_num)
             tmp_features = all_features[indices]
@@ -86,14 +86,14 @@ def train_model(sus_features, sus_label, hold_out_features, hold_out_label, test
             tqdm_bar.update(1)
 
     plt.figure()
-    plt.title(f"Training Loss for Model {test_i}")
+    plt.title(f"Training Loss for Model {pair_idx}_{test_i}")
     plt.xlim(0, epochs)
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.tick_params(axis='both', which='both', direction="in")
     plt.tight_layout()
     plt.plot(loss_list)
-    plt.savefig(os.path.join(MODEL_OUTPUT_DIR, f"training_loss_{test_i}.png"))
+    plt.savefig(os.path.join(MODEL_OUTPUT_DIR, f"pair_{pair_idx}", f"training_loss_{pair_idx}_{test_i}.png"))
     plt.close()
 
     torch.save(model.state_dict(), save_file)
@@ -140,12 +140,12 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
     
     total_ds_len = ds1_feats.shape[0]
     
-    ttest_file_path = os.path.join(TTest_OUTPUT_DIR, f"ttest_pair_{pair_idx}_results.json")
+    ttest_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"ttest_pair_{pair_idx}_results.json")
     
     results = []
     
     for test_i in range(SPLIT_TIMES):
-        preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}_preds_{test_i}.json")
+        preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"pair_{pair_idx}_preds_{test_i}.json")
         
         print(f"\n--- Start Testing Pair {pair_idx} - Test {test_i} ---")
         # Generate exact permutation indices
@@ -164,6 +164,7 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
             features_A_tuple[1],
             features_A_tuple[2], 
             features_A_tuple[3],
+            pair_idx,
             test_i, 
             MODEL_OUTPUT_DIR
         )
@@ -235,7 +236,7 @@ if __name__ == "__main__":
             try:
                 pair_results = process_single_pair(
                     loader, 
-                    pair_idx, 
+                    pair_idx + 1, 
                     dataset1_name, 
                     dataset2_name,
                     MODEL_OUTPUT_DIR, 
@@ -245,12 +246,12 @@ if __name__ == "__main__":
                 )
                 all_pair_results.extend(pair_results)
             except FileNotFoundError as e:
-                print(f"\nError: Pair {pair_idx} not found, stopping.")
+                print(f"\nError: Pair {pair_idx + 1} not found, stopping.")
                 break
     else:
         # Single pair for sus + hold-out dataset
         try:
-            # Use pair_idx=0 for non-base12 pairs
+            # **Note**: Use pair_idx=0 for non-base12 pairs
             pair_results = process_single_pair(
                 loader, 
                 0, 
