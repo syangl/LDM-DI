@@ -24,7 +24,8 @@ class MetadataFeatureLoader:
         
         # original dataset names
         self.dataset_names = [
-            "commoncatalog_cc_by",
+            # "commoncatalog_cc_by",
+            "commoncatalog_cc_by_sa",
             "laion_aesthetics_v2_5p0", 
             "coco_2017_val",
             "laion2b_multi_translated",

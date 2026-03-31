@@ -61,7 +61,8 @@ def create_parser():
         choices=[
             ## non-iid datasets
             # training sets
-            "commoncatalog_cc_by",
+            # "commoncatalog_cc_by",
+            "commoncatalog_cc_by_sa",
             "laion_aesthetics_v2_5p0",
             # hold-out source data
             "coco_2017_val",
@@ -69,7 +70,8 @@ def create_parser():
             "nocaps",
             
             # TPR group hold-out sets
-            "D_hold_out_commoncatalog_cc_by",
+            # "D_hold_out_commoncatalog_cc_by",
+            "D_hold_out_commoncatalog_cc_by_sa",
             "D_hold_out_laion_aesthetics_v2_5p0",
             # calibrated hold-out sets
             "D_base_1",
@@ -134,10 +136,12 @@ dataset_plot_names = {
     "coco_2017_val": "COCO2017-val",
     "laion_aesthetics_v2_5p0": "LAION Aesthetics v2 5+",
     # "laion_high_resolution": "LAION High Resolution",
-    "commoncatalog_cc_by": "CommonCatalog CC-BY",
+    # "commoncatalog_cc_by": "CommonCatalog CC-BY",
+    "commoncatalog_cc_by_sa": "CommonCatalog CC-BY-SA",
     "laion2b_multi_translated": "LAION-2B Multi Translated",
     "nocaps": "NoCaps",
-    "D_hold_out_commoncatalog_cc_by": "Hold-out of CommonCatalog CC-BY",
+    # "D_hold_out_commoncatalog_cc_by": "Hold-out of CommonCatalog CC-BY",
+    "D_hold_out_commoncatalog_cc_by_sa": "Hold-out of CommonCatalog CC-BY-SA",
     "D_hold_out_laion_aesthetics_v2_5p0": "Hold-out of LAION Aesthetics v2 5+",
     "D_base_1": "Calibrated Hold-out Base-1",
     "D_base_2": "Calibrated Hold-out Base-2",
