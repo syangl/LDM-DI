@@ -68,6 +68,10 @@ def calculate_roc_metrics(hold_hold_t_stats, sus_hold_t_stats, target_fpr_list=[
     fpr, tpr, thresholds = roc_curve(labels, scores)
     roc_auc = auc(fpr, tpr)
     
+    # Fix Infinity in thresholds (replace with max score + 1)
+    max_score = np.max(scores)
+    thresholds = np.where(np.isinf(thresholds), max_score + 1.0, thresholds)
+    
     # Calculate TPR at target FPRs
     tpr_at_fpr = {}
     for target_fpr in target_fpr_list:
