@@ -210,9 +210,9 @@ def main():
     if len(hold_hold_t_stats) > 0:
         fpr, num_false_rejections = calculate_rejection_rate(hold_hold_t_stats, tau)
         print(f"\nFPR calculation on D_hold/D_hold:")
-        print(f"   Number of tests: {len(hold_hold_t_stats)}")
-        print(f"   Number of false rejections (t > tau): {num_false_rejections}")
-        print(f"   FPR: {fpr:.6f}")
+        print(f"Number of tests: {len(hold_hold_t_stats)}")
+        print(f"Number of false rejections (t > tau): {num_false_rejections}")
+        print(f"FPR: {fpr:.6f}")
     
     # Calculate TPR
     tpr = None
@@ -220,19 +220,19 @@ def main():
     if len(sus_hold_t_stats) > 0:
         tpr, num_true_rejections = calculate_rejection_rate(sus_hold_t_stats, tau)
         print(f"\nTPR calculation on D_sus/D_hold:")
-        print(f"   Number of tests: {len(sus_hold_t_stats)}")
-        print(f"   Number of true rejections (t > tau): {num_true_rejections}")
-        print(f"   TPR: {tpr:.6f}")
+        print(f"Number of tests: {len(sus_hold_t_stats)}")      
+        print(f"Number of true rejections (t > tau): {num_true_rejections}")
+        print(f"TPR: {tpr:.6f}")
     
     # Calculate ROC metrics and TPR at low FPR
     roc_metrics = None
     if len(hold_hold_t_stats) > 0 and len(sus_hold_t_stats) > 0:
         roc_metrics = calculate_roc_metrics(hold_hold_t_stats, sus_hold_t_stats)
         print(f"\nAdvanced ROC Metrics:")
-        print(f"   AUC: {roc_metrics['auc']:.6f}")
-        print(f"   TPR at specific FPR:")
+        print(f"AUC: {roc_metrics['auc']:.6f}")
+        print(f"TPR at specific FPR:")
         for fpr_level, tpr_level in roc_metrics['tpr_at_fpr'].items():
-            print(f"      TPR@FPR={fpr_level:.3f}: {tpr_level:.6f}")
+            print(f"TPR@FPR={fpr_level:.3f}: {tpr_level:.6f}")
     
     # Save all results
     results_dict = {
@@ -250,7 +250,7 @@ def main():
             "max_t": float(np.max(base12_t_stats)),
             "mean_t": float(np.mean(base12_t_stats)),
             "std_t": float(np.std(base12_t_stats)),
-            "tau_3sigma": float(three_sigma_result["tau_3sigma"]),
+            # "tau_3sigma": float(three_sigma_result["tau_3sigma"]),
             # "tau_max": float(three_sigma_result["tau_max"]),
             "tau": float(tau)
         },
