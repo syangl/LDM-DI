@@ -31,6 +31,18 @@ class MIDataset:
     def __getitem__(self, idx):
         return self.data[idx], self.label[idx]
 
+def is_hold_dataset(ds):
+    hold_datasets = ["coco_2017_val", "laion2b_multi_translated", "nocaps"]
+    return ds.startswith("D_hold_out_") or ds in hold_datasets
+
+def is_hold_hold_pair(ds1, ds2):
+    return is_hold_dataset(ds1) and is_hold_dataset(ds2)
+
+def is_sus_hold_pair(ds1, ds2):
+    has_sus = (not is_hold_dataset(ds1) and ds1 not in ["D_base_1", "D_base_2"])
+    has_sus = has_sus or (not is_hold_dataset(ds2) and ds2 not in ["D_base_1", "D_base_2"])
+    has_hold = is_hold_dataset(ds1) or is_hold_dataset(ds2)
+    return has_sus and has_hold
 
 def get_datasets_clf(members: torch.Tensor, nonmembers: torch.Tensor) -> MIDataset:
     dataset = MIDataset(members, nonmembers)
@@ -102,7 +114,14 @@ def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT
     print(f"  DS1 features shape: {ds1_feats.shape}")
     print(f"  DS2 features shape: {ds2_feats.shape}")
     
-    cdi_result_file_path = os.path.join(CDI_OUTPUT_DIR, f"cdi_test_{test_i}_results.json")
+    if is_hold_hold_pair(dataset1_name, dataset2_name):
+        os.makedirs(os.path.join(CDI_OUTPUT_DIR, "hold_hold"), exist_ok=True)
+        cdi_result_file_path = os.path.join(CDI_OUTPUT_DIR, "hold_hold", f"cdi_test_{test_i}_results.json")
+    elif is_sus_hold_pair(dataset1_name, dataset2_name):
+        os.makedirs(os.path.join(CDI_OUTPUT_DIR, "sus_hold"), exist_ok=True)
+        cdi_result_file_path = os.path.join(CDI_OUTPUT_DIR, "sus_hold", f"cdi_test_{test_i}_results.json")
+    else:
+        raise ValueError(f"Unknown dataset pair: {dataset1_name} vs {dataset2_name}")
     
     print(f"Running CDI score computation...")
     members_scores, nonmembers_scores = cdi_process_data(ds1_feats, ds2_feats, test_i)
