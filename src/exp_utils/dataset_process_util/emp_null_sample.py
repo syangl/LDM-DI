@@ -34,7 +34,7 @@ from exp_utils.load_util.load_data import create_dataset_dataloader
 
 TARGET_TOTAL_SAMPLES = 1000
 LOAD_NUM = 3000
-NUM_PAIRS = 100
+NUM_PAIRS = 500
 # TEXTURE_CLUSTERS, CLIP_CLUSTERS = determine_k(LOAD_NUM*4)
 # print(f"TEXTURE_CLUSTERS: {TEXTURE_CLUSTERS}, CLIP_CLUSTERS: {CLIP_CLUSTERS}")
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
@@ -279,10 +279,15 @@ if __name__ == "__main__":
 
     for pair_i in tqdm(range(NUM_PAIRS), desc="Generating base12 pairs"):
         print(f"\n--- Generating pair {pair_i + 1}/{NUM_PAIRS} ---")
-        mixed_df_1, mixed_df_2 = split_datasets(prepared_df)
         
         base1_file = os.path.join(OUTPUT_ROOT, f"pair_{pair_i + 1}_base1.json")
         base2_file = os.path.join(OUTPUT_ROOT, f"pair_{pair_i + 1}_base2.json")
+        
+        if os.path.exists(base1_file) and os.path.exists(base2_file):
+            print(f"Pair {pair_i + 1} already exists, skipping.")
+            continue
+        
+        mixed_df_1, mixed_df_2 = split_datasets(prepared_df)
         
         save_metadata_only(mixed_df_1, base1_file)
         save_metadata_only(mixed_df_2, base2_file)  
