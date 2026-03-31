@@ -129,6 +129,19 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
     """
     Process a single dataset pair for t-test
     """
+    ttest_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"ttest_pair_{pair_idx}_results.json")
+    
+    # Check if results already exist
+    if os.path.exists(ttest_file_path):
+        print(f"\n{'='*60}")
+        print(f"Results for Pair {pair_idx} already exist: {ttest_file_path}")
+        print(f"{'='*60}")
+        print("Loading existing results...")
+        with open(ttest_file_path, "r", encoding='utf-8') as f:
+            results = json.load(f)
+        print(f"Loaded {len(results)} results")
+        return results
+    
     print(f"\n{'='*60}")
     print(f"Processing Pair {pair_idx}: {dataset1_name} vs {dataset2_name}")
     print(f"{'='*60}")
@@ -140,8 +153,6 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
     print(f"  DS2 features shape: {ds2_feats.shape}")
     
     total_ds_len = ds1_feats.shape[0]
-    
-    ttest_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"ttest_pair_{pair_idx}_results.json")
     
     results = []
     
