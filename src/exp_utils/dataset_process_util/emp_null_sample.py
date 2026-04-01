@@ -4,39 +4,23 @@ project_root = os.path.dirname(os.path.dirname(current_dir))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 import json
-from PIL import Image
 import random
 import torch
-import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans
-from sklearn.model_selection import train_test_split
 import clip
 from transformers import CLIPTokenizer
 from exp_utils.config_util.attack_config import attack_args, HOLD_OUT_OUTPUT_DIR
 from exp_utils.load_util.load_data import create_dataset_dataloader
 
-
-# def determine_k(total_samples):
-#     # for example, we split the dataset into 50 samples per cluster
-#     samples_per_cluster = 50
-#     total_clusters = total_samples / samples_per_cluster
-
-#     # let TEXTURE_CLUSTERS = CLIP_CLUSTERS = k
-#     # k^2 = total_clusters => k = sqrt(total_clusters)
-#     k_txt = k_clip = int(np.sqrt(total_clusters))
-#     return max(k_txt, 10), max(k_clip, 10)
-
 TARGET_TOTAL_SAMPLES = 1000
 LOAD_NUM = 3000
 NUM_PAIRS = 500
-# TEXTURE_CLUSTERS, CLIP_CLUSTERS = determine_k(LOAD_NUM*4)
-# print(f"TEXTURE_CLUSTERS: {TEXTURE_CLUSTERS}, CLIP_CLUSTERS: {CLIP_CLUSTERS}")
+
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 OUTPUT_ROOT = os.path.join(attack_args.local_dataset_path, "D_base")
 
