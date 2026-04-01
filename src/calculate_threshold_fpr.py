@@ -53,13 +53,14 @@ def calculate_rejection_rate(t_stats, tau):
     return rejection_rate, num_rejections
 
 
-def empirical_quantile_calibration(base_t_stats, alpha, trim_percent=0.0):
+
+def empirical_quantile_mean(base_t_stats, alpha, trim_percent=0.0):
     """
     Empirical quantile threshold calibration with outlier replacement using mean.
     """
     stats = np.copy(base_t_stats)
     
-    if trim_percent is not None:
+    if trim_percent is not None and trim_percent > 0.0:
         # calculate quantile thresholds
         lower = np.percentile(stats, 100 * trim_percent)
         upper = np.percentile(stats, 100 * (1 - trim_percent))
@@ -78,7 +79,6 @@ def empirical_quantile_calibration(base_t_stats, alpha, trim_percent=0.0):
         "tau_quantile": float(tau_quantile),
         "alpha": alpha,
     }
-
 
 def is_base12_pair(ds1, ds2):
     return {ds1, ds2} == {"D_base_1", "D_base_2"}
@@ -105,7 +105,7 @@ def main():
     # Parameters
     K_BASE = 500
     SPLIT_TIMES = 100
-    ALPHA = 0.01 # significance level 
+    ALPHA = 0.001 # significance level 
     
     RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "threshold_fpr")
     os.makedirs(RESULTS_OUTPUT_DIR, exist_ok=True)
@@ -170,7 +170,7 @@ def main():
     
     # Calculate threshold tau (Empirical Quantile rule)
     print(f"\nCalculating threshold tau using empirical quantile (alpha={ALPHA})...")
-    quantile_result = empirical_quantile_calibration(base12_t_stats, alpha=ALPHA)
+    quantile_result = empirical_quantile_mean(base12_t_stats, alpha=ALPHA)
     tau = quantile_result["tau_quantile"]
     print(f"Threshold tau (Quantile) = {tau:.6f}")
     
