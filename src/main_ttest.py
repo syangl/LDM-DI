@@ -235,7 +235,7 @@ def is_sus_hold_pair(ds1, ds2):
 
 if __name__ == "__main__":
     # Parameters
-    SPLIT_TIMES = 20  # Number of repeated tests
+    SPLIT_TIMES = 100  # Number of repeated tests
     SPLIT_DS_LEN = attack_args.dataset_total_num // 2
     K_BASE = 500  # Total pairs to process for base12
     
