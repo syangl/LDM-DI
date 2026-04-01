@@ -17,6 +17,26 @@ from transformers import CLIPTokenizer
 from exp_utils.config_util.attack_config import attack_args, HOLD_OUT_OUTPUT_DIR
 from exp_utils.load_util.load_data import create_dataset_dataloader
 
+
+def load_exclude_indices():
+    exclude_indices = set()
+    
+    hold_out_names = ["D_hold_out_1", "D_hold_out_2"]
+    for ds_name in hold_out_names:
+        meta_file = os.path.join(attack_args.local_dataset_path, ds_name, "metadata", f"meta_{ds_name}.json")
+        if os.path.exists(meta_file):
+            with open(meta_file, 'r', encoding='utf-8') as f:
+                metadata_list = json.load(f)
+            for item in metadata_list:
+                key = f"{item['source_dataset']}_{item['original_index']}"
+                exclude_indices.add(key)
+            print(f"Loaded {len(metadata_list)} exclude indices from {ds_name}")
+        else:
+            print(f"Warning: {meta_file} not found, will not exclude samples from {ds_name}")
+    
+    print(f"Total exclude indices: {len(exclude_indices)}")
+    return exclude_indices
+
 TARGET_TOTAL_SAMPLES = 1000
 LOAD_NUM = 3000
 NUM_PAIRS = 500
@@ -51,7 +71,10 @@ def compute_metrics(imgs):
 
 
 
-def prepare_datasets(dataloaders, clip_model):
+def prepare_datasets(dataloaders, clip_model, exclude_indices=None):
+    if exclude_indices is None:
+        exclude_indices = set()
+    
     metadata_list = []
     for loader_name, loader in dataloaders.items():
         print(f"Processing {loader_name}...")
@@ -61,19 +84,32 @@ def prepare_datasets(dataloaders, clip_model):
             if isinstance(indices, torch.Tensor):
                 indices = indices.cpu().numpy().tolist()
 
-            imgs = imgs.to(DEVICE)
-            imgs_metrics = compute_metrics(imgs)
+            valid_mask = []
+            valid_imgs = []
+            valid_indices = []
+            
+            for i in range(len(indices)):
+                key = f"{loader_name}_{indices[i]}"
+                if key not in exclude_indices:
+                    valid_mask.append(i)
+                    valid_imgs.append(imgs[i])
+                    valid_indices.append(indices[i])
+            
+            if len(valid_imgs) == 0:
+                continue
+            
+            valid_imgs_tensor = torch.stack(valid_imgs).to(DEVICE)
+            imgs_metrics = compute_metrics(valid_imgs_tensor)
 
             with torch.no_grad():
-                image_features = clip_model.encode_image(imgs)
+                image_features = clip_model.encode_image(valid_imgs_tensor)
                 image_features = image_features / image_features.norm(dim=-1, keepdim=True)
                 embeddings = image_features.cpu().numpy()
 
-            batch_size = imgs.shape[0]
-            for i in range(batch_size):
+            for i in range(len(valid_indices)):
                 metadata_list.append({
                     'source_dataset': loader_name,
-                    'original_index': indices[i],
+                    'original_index': valid_indices[i],
                     'laplacian': imgs_metrics['laplacian'][i],
                     'fft': imgs_metrics['fft'][i],
                     'embedding': embeddings[i],
@@ -89,19 +125,17 @@ def split_datasets(df):
     df_norm = df.copy()
     df_norm[metric_cols] = scaler.fit_transform(df[metric_cols])
 
-    kmeans_txt = KMeans(random_state=0,
-                        n_init='auto')
+    kmeans_txt = KMeans(n_init='auto')
     df['txt_cluster'] = kmeans_txt.fit_predict(df_norm[metric_cols])
 
     emb_matrix = np.stack(df['embedding'].values)
-    kmeans_clip = KMeans(random_state=0,
-                        n_init='auto')
+    kmeans_clip = KMeans(n_init='auto')
     df['clip_cluster'] = kmeans_clip.fit_predict(emb_matrix)
 
     source_map = {
         'coco_2017_val': 0.0,
-        'nocaps': 1.0,
-        'laion2b_multi_translated': 2.0
+        'laion2b_multi_translated': 1.0,
+        'nocaps': 2.0,
     }
     df['source_val'] = df['source_dataset'].map(source_map).fillna(1.5)
 
@@ -222,6 +256,11 @@ if __name__ == "__main__":
     tokenizer = CLIPTokenizer.from_pretrained(
         os.path.join(attack_args.base_model_id, "tokenizer"))
 
+    print("="*60)
+    print("Loading exclude indices from D_hold_out_1 and D_hold_out_2...")
+    exclude_indices = load_exclude_indices()
+    print("="*60)
+
     configs = {
         'coco_2017_val': {
             "dataset": "coco_2017_val",
@@ -250,14 +289,15 @@ if __name__ == "__main__":
                                           tokenizer,
                                           224,
                                           64,
-                                          need_save=False)
+                                          need_save=False,
+                                          exclude_indices=exclude_indices)
         dataloaders[name] = dl
 
     print("Loading CLIP model...")
     clip_model, _ = clip.load("ViT-B/32", device=DEVICE)
     clip_model.eval()
 
-    prepared_df = prepare_datasets(dataloaders, clip_model=clip_model)
+    prepared_df = prepare_datasets(dataloaders, clip_model=clip_model, exclude_indices=exclude_indices)
 
     os.makedirs(OUTPUT_ROOT, exist_ok=True)
 
