@@ -296,8 +296,7 @@ if __name__ == "__main__":
     
     # original datasets
     dataset_names = [
-        # "commoncatalog_cc_by", # used for commoncanvas
-        "commoncatalog_cc_by_sa",
+        "commoncatalog_cc_by_sa", # used for commoncanvas
         "coco_2017_val",
         "laion2b_multi_translated",
         "nocaps"
@@ -321,11 +320,11 @@ if __name__ == "__main__":
             continue
         
         # create dataset config
-        dataset_split = "train" if dataset_name in ["commoncatalog_cc_by", "commoncatalog_cc_by_sa", "laion_aesthetics_v2_5p0"] else "val"
+        dataset_split = "train" if dataset_name in ["commoncatalog_cc_by_sa", "laion_aesthetics_v2_5p0"] else "val"
         dataset_config = {
             "dataset": dataset_name,
             "load_path": f"{attack_args.local_dataset_path}/{dataset_name}/data/{dataset_split}",
-            "load_num": 1000 if dataset_name in ["commoncatalog_cc_by", "commoncatalog_cc_by_sa", "laion_aesthetics_v2_5p0"] else 3000,
+            "load_num": 1000 if dataset_name in ["commoncatalog_cc_by_sa", "laion_aesthetics_v2_5p0"] else 3000,
             "split": dataset_split,
         }
         
