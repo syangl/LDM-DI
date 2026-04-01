@@ -50,7 +50,7 @@ def process_features(sus_feats_subset, hold_out_feats_subset):
 def train_model(sus_features, sus_label, hold_out_features, hold_out_label, pair_idx, test_i, MODEL_OUTPUT_DIR):
     model = torch.nn.Sequential(
         torch.nn.Linear(sus_features.shape[1], 1),
-        torch.nn.Sigmoid()
+        # torch.nn.Sigmoid()
     )
     save_file = os.path.join(MODEL_OUTPUT_DIR, f"pair_{pair_idx}", f"model_{pair_idx}_{test_i}.pt")
     if os.path.exists(save_file):
@@ -103,7 +103,8 @@ def train_model(sus_features, sus_label, hold_out_features, hold_out_label, pair
 
 def predict(model, features):
     model.eval()
-    return model(features).detach()
+    logits = model(features).detach()
+    return torch.sigmoid(logits)
 
 
 def t_test(B_sus, B_hold_out):

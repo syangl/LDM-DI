@@ -53,20 +53,28 @@ def calculate_rejection_rate(t_stats, tau):
     return rejection_rate, num_rejections
 
 
-def three_sigma_threshold_calibration(base_t_stats):
+def empirical_quantile_calibration(base_t_stats, alpha, trim_percent=0.025):
     """
-    3-sigma rule for threshold calibration
+    Empirical quantile threshold calibration with outlier replacement using mean.
     """
-    mean_t = np.mean(base_t_stats)
-    std_t = np.std(base_t_stats)
+    stats = np.copy(base_t_stats)
     
-    tau_3sigma = mean_t + 3 * std_t
+    # calculate quantile thresholds
+    lower = np.percentile(stats, 100 * trim_percent)
+    upper = np.percentile(stats, 100 * (1 - trim_percent))
+    mean_val = np.mean(stats)
     
-    # tau_max = np.max(base_t_stats)
+    # replace outliers with mean
+    mask = (stats < lower) | (stats > upper)
+    cleaned_stats = np.where(mask, mean_val, stats)
+        
+    # calculate empirical quantile threshold
+    q = 100 * (1 - alpha)
+    tau_quantile = np.percentile(cleaned_stats, q)
     
     return {
-        "tau_3sigma": float(tau_3sigma),
-        # "tau_max": float(tau_max)
+        "tau_quantile": float(tau_quantile),
+        "alpha": alpha,
     }
 
 
@@ -93,9 +101,9 @@ def is_sus_hold_pair(ds1, ds2):
 def main():
     DEFAULT_TTEST_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
     # Parameters
-    K_BASE = 100
-    SPLIT_TIMES = 20
-    # QUANTILE_LEVEL = 0.95  # 95% quantile
+    K_BASE = 500
+    SPLIT_TIMES = 100
+    ALPHA = 0.05 # significance level
     
     RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "threshold_fpr")
     os.makedirs(RESULTS_OUTPUT_DIR, exist_ok=True)
@@ -158,17 +166,11 @@ def main():
         print("Error: No base12 data loaded")
         return
     
-    # Calculate threshold tau (3-sigma rule)
-    print(f"\nCalculating threshold tau using 3-sigma rule...")
-    three_sigma_result = three_sigma_threshold_calibration(base12_t_stats)
-    tau = three_sigma_result["tau_3sigma"]
-    print(f"Threshold tau (3-sigma) = {tau:.6f}")
-    # print(f"Threshold tau (max of base12) = {three_sigma_result['tau_max']:.6f}")
-    
-    # Original 95% quantile calculation (kept for rollback)
-    # print(f"\nCalculating {QUANTILE_LEVEL*100}% quantile as threshold tau...")
-    # tau = np.quantile(base12_t_stats, QUANTILE_LEVEL)
-    # print(f"Threshold tau = {tau:.6f}")
+    # Calculate threshold tau (Empirical Quantile rule)
+    print(f"\nCalculating threshold tau using empirical quantile (alpha={ALPHA})...")
+    quantile_result = empirical_quantile_calibration(base12_t_stats, alpha=ALPHA)
+    tau = quantile_result["tau_quantile"]
+    print(f"Threshold tau (Quantile) = {tau:.6f}")
     
     # Calculate FPR
     fpr = None
@@ -196,8 +198,8 @@ def main():
         "parameters": {
             "K_BASE": int(K_BASE),
             "SPLIT_TIMES": int(SPLIT_TIMES),
-            # "QUANTILE_LEVEL": float(QUANTILE_LEVEL),
-            "threshold_method": "3-sigma"
+            "alpha": float(ALPHA),
+            "threshold_method": "empirical_quantile"
         },
         "base12_statistics": {
             "dataset1": base12_info['dataset1'] if base12_info else None,
@@ -207,8 +209,6 @@ def main():
             "max_t": float(np.max(base12_t_stats)),
             "mean_t": float(np.mean(base12_t_stats)),
             "std_t": float(np.std(base12_t_stats)),
-            # "tau_3sigma": float(three_sigma_result["tau_3sigma"]),
-            # "tau_max": float(three_sigma_result["tau_max"]),
             "tau": float(tau)
         },
         "hold_hold_statistics": {
@@ -243,8 +243,7 @@ def main():
     print("\n" + "="*60)
     print("Summary")
     print("="*60)
-    print(f"  Threshold tau (3-sigma): {tau:.6f}")
-    # print(f"  Threshold tau (max of base12): {three_sigma_result['tau_max']:.6f}")
+    print(f"  Threshold tau (Quantile, alpha={ALPHA}): {tau:.6f}")
     if fpr is not None:
         print(f"  FPR on D_hold/D_hold: {fpr:.6f}")
     if tpr is not None:
@@ -254,4 +253,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
