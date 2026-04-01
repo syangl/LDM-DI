@@ -77,7 +77,6 @@ def create_parser():
             "D_hold_out_commoncatalog_cc_by_sa",
             "D_hold_out_laion_aesthetics_v2_5p0",
 
-            
             # FPR group hold-out sets
             "D_hold_out_1",
             "D_hold_out_2",

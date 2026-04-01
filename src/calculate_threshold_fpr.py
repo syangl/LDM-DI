@@ -53,21 +53,23 @@ def calculate_rejection_rate(t_stats, tau):
     return rejection_rate, num_rejections
 
 
-def empirical_quantile_calibration(base_t_stats, alpha, trim_percent=0.025):
+def empirical_quantile_calibration(base_t_stats, alpha, trim_percent=0.0):
     """
     Empirical quantile threshold calibration with outlier replacement using mean.
     """
     stats = np.copy(base_t_stats)
     
-    # calculate quantile thresholds
-    lower = np.percentile(stats, 100 * trim_percent)
-    upper = np.percentile(stats, 100 * (1 - trim_percent))
-    mean_val = np.mean(stats)
+    if trim_percent is not None:
+        # calculate quantile thresholds
+        lower = np.percentile(stats, 100 * trim_percent)
+        upper = np.percentile(stats, 100 * (1 - trim_percent))
+        mean_val = np.mean(stats)
     
-    # replace outliers with mean
-    mask = (stats < lower) | (stats > upper)
-    cleaned_stats = np.where(mask, mean_val, stats)
-        
+        # replace outliers with mean
+        mask = (stats < lower) | (stats > upper)
+        cleaned_stats = np.where(mask, mean_val, stats)
+    else:
+        cleaned_stats = stats # use original stats if trim_percent is None
     # calculate empirical quantile threshold
     q = 100 * (1 - alpha)
     tau_quantile = np.percentile(cleaned_stats, q)
@@ -103,7 +105,7 @@ def main():
     # Parameters
     K_BASE = 500
     SPLIT_TIMES = 100
-    ALPHA = 0.05 # significance level
+    ALPHA = 0.01 # significance level 
     
     RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "threshold_fpr")
     os.makedirs(RESULTS_OUTPUT_DIR, exist_ok=True)
