@@ -3,6 +3,7 @@
 .vscode/
 src/exp_data/
 exp_data/
+paper_plot/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
