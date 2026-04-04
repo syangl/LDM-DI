@@ -151,7 +151,7 @@ def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT
 
 
 if __name__ == "__main__":
-    SPLIT_TIMES = 20  # Number of repeated tests
+    SPLIT_TIMES = 100  # Number of repeated tests
     
     dataset1_name = attack_args.used_datasets[0]
     dataset2_name = attack_args.used_datasets[1]

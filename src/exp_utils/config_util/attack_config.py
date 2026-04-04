@@ -139,7 +139,7 @@ dataset_plot_names = {
 }
 model_plot_names = {
     "stable-diffusion-v1p5": "Stable-Diffusion-v1-5",
-    "commoncanvas-s-nc": "CommonCanvas-S-NC",
+    "commoncanvas-s-c": "CommonCanvas-S-C",
     "kandinsky-3": "Kandinsky-3",
 }
 # get model path
