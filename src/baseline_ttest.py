@@ -12,6 +12,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import KFold
 from scipy.stats import ttest_ind
 import json
+import datetime
+import time
 
 
 class MIDataset:
@@ -107,7 +109,11 @@ def cdi_process_data(members: torch.Tensor, nonmembers: torch.Tensor, test_i: in
 def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT_DIR):
     print(f"\n{'='*60}")
     print(f"Processing Test {test_i}: {dataset1_name} vs {dataset2_name} (CDI baseline)")
+    print(f"Start time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"{'='*60}")
+    
+    # Record start time
+    test_start_time = time.time()
     
     ds1_feats, ds2_feats = loader.load_dataset_pair_features(dataset1_name, dataset2_name, test_i)
     
@@ -131,7 +137,13 @@ def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT
     
     p_value, is_correct_order, t_statistic = get_p_value(members_scores_np, nonmembers_scores_np, members_lower=False)
     
+    # Calculate elapsed time
+    test_elapsed = time.time() - test_start_time
+    hours, rem = divmod(test_elapsed, 3600)
+    minutes, seconds = divmod(rem, 60)
+    
     print(f"CDI Result - p-value: {p_value:.6f}, is_correct_order: {is_correct_order}")
+    print(f"Test {test_i} elapsed time: {int(hours)}h {int(minutes)}m {seconds:.2f}s")
     
     result = {
         "test_i": test_i,
@@ -140,6 +152,7 @@ def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT
         "p_value": float(p_value),
         "t_statistic": float(t_statistic),
         "is_correct_order": is_correct_order,
+        "test_elapsed_seconds": test_elapsed,
         "members_scores": members_scores_np.tolist(),
         "nonmembers_scores": nonmembers_scores_np.tolist()
     }
@@ -147,11 +160,11 @@ def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT
     with open(cdi_result_file_path, "w", encoding='utf-8') as f:
         json.dump(result, f, indent=4)
     print(f"\nSaved to {cdi_result_file_path}")
-    return result
+    return result, test_elapsed
 
 
 if __name__ == "__main__":
-    SPLIT_TIMES = 100  # Number of repeated tests
+    SPLIT_TIMES = 10  # Number of repeated tests
     
     dataset1_name = attack_args.used_datasets[0]
     dataset2_name = attack_args.used_datasets[1]
@@ -159,14 +172,30 @@ if __name__ == "__main__":
     CDI_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "cdi_baseline")
     os.makedirs(CDI_OUTPUT_DIR, exist_ok=True)
     
-    print("Initializing Metadata & Feature Loader...")
+    # Time tracking
+    time_stats = {
+        "model_name": attack_args.model_name,
+        "dataset1": dataset1_name,
+        "dataset2": dataset2_name,
+        "start_time": datetime.datetime.now().isoformat(),
+        "tests": {},
+        "total_time_seconds": 0
+    }
+    
+    # Record overall start time
+    overall_start_time = time.time()
+    print(f"\n{'='*60}")
+    print(f"Starting CDI baseline on dataset pair: {dataset1_name} vs {dataset2_name}")
+    print(f"Start time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{'='*60}")
+    
+    print("\nInitializing Metadata & Feature Loader...")
     loader = create_loader()
     
-    print(f"Starting CDI baseline on dataset pair: {dataset1_name} vs {dataset2_name}")
     all_results = []
     for test_i in range(SPLIT_TIMES):
         try:
-            result = process_single_pair(
+            result, test_elapsed = process_single_pair(
                         loader, 
                         test_i, 
                         dataset1_name, 
@@ -174,9 +203,28 @@ if __name__ == "__main__":
                         CDI_OUTPUT_DIR
                     )
             all_results.append(result)
+            
+            # Save test time
+            time_stats["tests"][str(test_i)] = test_elapsed
+            time_stats["total_time_seconds"] += test_elapsed
         except FileNotFoundError as e:
                 print(f"\nError: {e}")
-     
+    
+    # Calculate overall elapsed time
+    overall_elapsed = time.time() - overall_start_time
+    time_stats["end_time"] = datetime.datetime.now().isoformat()
+    time_stats["total_time_seconds"] = overall_elapsed
+    
+    # Format time
+    total_hours, total_rem = divmod(overall_elapsed, 3600)
+    total_minutes, total_seconds = divmod(total_rem, 60)
+    time_stats["total_time_formatted"] = f"{int(total_hours)}h {int(total_minutes)}m {total_seconds:.2f}s"
+    
+    # Save time stats
+    time_stats_file = os.path.join(CDI_OUTPUT_DIR, f"time_stats_{dataset1_name}_{dataset2_name}.json")
+    with open(time_stats_file, "w", encoding='utf-8') as f:
+        json.dump(time_stats, f, indent=2, ensure_ascii=False)
+    
     print(f"\nSummary Statistics:")
     if all_results:
         p_values = [result['p_value'] for result in all_results]
@@ -185,3 +233,10 @@ if __name__ == "__main__":
         print(f"  Max p-value: {np.max(p_values):.6f}")
         print(f"  Mean p-value: {np.mean(p_values):.6f}")
         print(f"  Correct order rate: {np.mean(correct_orders):.2%}")
+    
+    # Print final summary
+    print(f"\n{'='*60}")
+    print("All processing complete!")
+    print(f"Total elapsed time: {time_stats['total_time_formatted']}")
+    print(f"Time stats saved to: {time_stats_file}")
+    print(f"{'='*60}")

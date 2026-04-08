@@ -10,6 +10,8 @@ from exp_utils.pipeline_util.txt2img_pipeline_select import txt2img_pipeline_sel
 import torch
 import numpy as np
 import json
+import datetime
+import time
 
 def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
     """
@@ -294,6 +296,10 @@ if __name__ == "__main__":
     FEATURE_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "offline_features")
     os.makedirs(FEATURE_OUTPUT_DIR, exist_ok=True)
     
+    # 10% sampling flag
+    USE_10_PERCENT_SAMPLING = True
+    SAMPLING_RATIO = 0.1
+    
     # original datasets
     dataset_names = [
         "commoncatalog_cc_by_sa", # used for commoncanvas
@@ -311,6 +317,17 @@ if __name__ == "__main__":
     print("Loading pipeline for feature extraction...")
     pipe = txt2img_pipeline_select(base_model_id=attack_args.base_model_id, PIPE_TYPE=PIPE_TYPE)
     
+    # time tracking
+    time_stats = {
+        "model_name": attack_args.model_name,
+        "start_time": datetime.datetime.now().isoformat(),
+        "use_10_percent_sampling": USE_10_PERCENT_SAMPLING,
+        "sampling_ratio": SAMPLING_RATIO,
+        "datasets": {},
+        "total_time_seconds": 0,
+        "estimated_total_time_seconds": 0
+    }
+    
     # process each dataset
     for dataset_name in dataset_names:
         feat_dict_path = os.path.join(FEATURE_OUTPUT_DIR, f"{dataset_name}_{attack_args.model_name}_features_dict.pt")
@@ -319,15 +336,87 @@ if __name__ == "__main__":
             print(f"Feature dict for {dataset_name} already exists! Skipping.")
             continue
         
+        # record start time
+        dataset_start_time = time.time()
+        print(f"\n{'='*60}")
+        print(f"Starting processing dataset: {dataset_name}")
+        print(f"Start time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        if USE_10_PERCENT_SAMPLING:
+            print(f"Mode: {int(SAMPLING_RATIO*100)}% sampling (estimated time x{1/SAMPLING_RATIO:.0f})")
+        print(f"{'='*60}")
+        
         # create dataset config
         dataset_split = "train" if dataset_name in ["commoncatalog_cc_by_sa", "laion_aesthetics_v2_5p0"] else "val"
+        original_load_num = 1000 if dataset_name in ["commoncatalog_cc_by_sa", "laion_aesthetics_v2_5p0"] else 3000
+        load_num = int(original_load_num * SAMPLING_RATIO) if USE_10_PERCENT_SAMPLING else original_load_num
+        
         dataset_config = {
             "dataset": dataset_name,
             "load_path": f"{attack_args.local_dataset_path}/{dataset_name}/data/{dataset_split}",
-            "load_num": 1000 if dataset_name in ["commoncatalog_cc_by_sa", "laion_aesthetics_v2_5p0"] else 3000,
+            "load_num": load_num,
             "split": dataset_split,
         }
         
         # extract features for this dataset
         extract_features_for_dataset(dataset_config, pipe, feat_dict_path)
+        
+        # record end time
+        dataset_end_time = time.time()
+        dataset_elapsed = dataset_end_time - dataset_start_time
+        
+        # estimated time for full dataset
+        estimated_elapsed = dataset_elapsed / SAMPLING_RATIO if USE_10_PERCENT_SAMPLING else dataset_elapsed
+        
+        # format time
+        hours, rem = divmod(dataset_elapsed, 3600)
+        minutes, seconds = divmod(rem, 60)
+        
+        est_hours, est_rem = divmod(estimated_elapsed, 3600)
+        est_minutes, est_seconds = divmod(est_rem, 60)
+        
+        print(f"\n{'='*60}")
+        print(f"Finished processing dataset: {dataset_name}")
+        print(f"End time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"Actual elapsed time ({load_num} samples): {int(hours)}h {int(minutes)}m {seconds:.2f}s")
+        if USE_10_PERCENT_SAMPLING:
+            print(f"Estimated full dataset time ({original_load_num} samples): {int(est_hours)}h {int(est_minutes)}m {est_seconds:.2f}s")
+        print(f"{'='*60}")
+        
+        # save stats
+        time_stats["datasets"][dataset_name] = {
+            "start_time": datetime.datetime.fromtimestamp(dataset_start_time).isoformat(),
+            "end_time": datetime.datetime.fromtimestamp(dataset_end_time).isoformat(),
+            "actual_elapsed_seconds": dataset_elapsed,
+            "actual_elapsed_formatted": f"{int(hours)}h {int(minutes)}m {seconds:.2f}s",
+            "estimated_elapsed_seconds": estimated_elapsed,
+            "estimated_elapsed_formatted": f"{int(est_hours)}h {int(est_minutes)}m {est_seconds:.2f}s",
+            "actual_sample_count": load_num,
+            "full_sample_count": original_load_num
+        }
+        time_stats["total_time_seconds"] += dataset_elapsed
+        time_stats["estimated_total_time_seconds"] += estimated_elapsed
+    
+    # calculate total time
+    time_stats["end_time"] = datetime.datetime.now().isoformat()
+    
+    total_hours, total_rem = divmod(time_stats["total_time_seconds"], 3600)
+    total_minutes, total_seconds = divmod(total_rem, 60)
+    time_stats["total_time_formatted"] = f"{int(total_hours)}h {int(total_minutes)}m {total_seconds:.2f}s"
+    
+    est_total_hours, est_total_rem = divmod(time_stats["estimated_total_time_seconds"], 3600)
+    est_total_minutes, est_total_seconds = divmod(est_total_rem, 60)
+    time_stats["estimated_total_time_formatted"] = f"{int(est_total_hours)}h {int(est_total_minutes)}m {est_total_seconds:.2f}s"
+    
+    # save time stats to JSON
+    time_stats_file = os.path.join(FEATURE_OUTPUT_DIR, f"time_stats_{attack_args.model_name}.json")
+    with open(time_stats_file, "w", encoding='utf-8') as f:
+        json.dump(time_stats, f, indent=2, ensure_ascii=False)
+    
+    print(f"\n{'='*60}")
+    print("All datasets processed!")
+    print(f"Actual total time: {time_stats['total_time_formatted']}")
+    if USE_10_PERCENT_SAMPLING:
+        print(f"Estimated full dataset total time: {time_stats['estimated_total_time_formatted']}")
+    print(f"Time stats saved to: {time_stats_file}")
+    print(f"{'='*60}")
     

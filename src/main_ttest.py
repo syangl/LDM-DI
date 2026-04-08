@@ -11,6 +11,8 @@ from tqdm import tqdm
 from scipy.stats import ttest_ind
 import json
 import matplotlib.pyplot as plt
+import datetime
+import time
 
 def feature_norm(features):
     features_mean = features.mean(dim=0, keepdim=True)
@@ -141,11 +143,15 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
         with open(ttest_file_path, "r", encoding='utf-8') as f:
             results = json.load(f)
         print(f"Loaded {len(results)} results")
-        return results
+        return results, 0
     
     print(f"\n{'='*60}")
     print(f"Processing Pair {pair_idx}: {dataset1_name} vs {dataset2_name}")
     print(f"{'='*60}")
+    
+    # Record start time for this pair
+    pair_start_time = time.time()
+    print(f"Pair {pair_idx} start time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
     # Load features for this pair
     ds1_feats, ds2_feats = loader.load_dataset_pair_features(dataset1_name, dataset2_name, pair_idx)
@@ -161,6 +167,8 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
         preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"pair_{pair_idx}_preds_{test_i}.json")
         
         print(f"\n--- Start Testing Pair {pair_idx} - Test {test_i} ---")
+        test_start_time = time.time()
+        
         # Generate exact permutation indices
         generator = torch.Generator().manual_seed(test_i)
         indices = torch.randperm(total_ds_len, generator=generator)
@@ -201,21 +209,33 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
         
         # Calculate Welch's t-statistic
         t_statistic = t_test(B_sus, B_hold_out)
-        print(f"Result Pair {pair_idx} Test {test_i}: t={t_statistic:.4f}")
+        test_elapsed = time.time() - test_start_time
+        print(f"Result Pair {pair_idx} Test {test_i}: t={t_statistic:.4f}, elapsed: {test_elapsed:.2f}s")
         
         results.append({
             "pair_idx": pair_idx,
             "dataset1": dataset1_name,
             "dataset2": dataset2_name,
             "test_i": test_i,
-            "t_statistic": t_statistic
+            "t_statistic": t_statistic,
+            "test_elapsed_seconds": test_elapsed
         })
     
     # Save all results for this pair
     with open(ttest_file_path, "w", encoding='utf-8') as f:
         json.dump(results, f, indent=4)
     
-    return results
+    # Calculate pair elapsed time
+    pair_elapsed = time.time() - pair_start_time
+    hours, rem = divmod(pair_elapsed, 3600)
+    minutes, seconds = divmod(rem, 60)
+    
+    print(f"\n{'='*60}")
+    print(f"Finished Pair {pair_idx}: {dataset1_name} vs {dataset2_name}")
+    print(f"Pair {pair_idx} elapsed time: {int(hours)}h {int(minutes)}m {seconds:.2f}s")
+    print(f"{'='*60}")
+    
+    return results, pair_elapsed
 
 
 def is_hold_dataset(ds):
@@ -238,7 +258,7 @@ if __name__ == "__main__":
     # Parameters
     SPLIT_TIMES = 100  # Number of repeated tests
     SPLIT_DS_LEN = attack_args.dataset_total_num // 2
-    K_BASE = 500  # Total pairs to process for base12
+    K_BASE = 400  # Total pairs to process for base12
     
     # Get dataset pair from attack_args
     dataset1_name = attack_args.used_datasets[0]
@@ -252,19 +272,34 @@ if __name__ == "__main__":
     TTest_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
     os.makedirs(TTest_OUTPUT_DIR, exist_ok=True)
     
+    # Time tracking
+    time_stats = {
+        "model_name": attack_args.model_name,
+        "dataset1": dataset1_name,
+        "dataset2": dataset2_name,
+        "start_time": datetime.datetime.now().isoformat(),
+        "pairs": {},
+        "total_time_seconds": 0
+    }
+    
+    # Record overall start time
+    overall_start_time = time.time()
+    print(f"\n{'='*60}")
+    print(f"Starting t-test on dataset pair: {dataset1_name} vs {dataset2_name}")
+    print(f"Start time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"{'='*60}")
+    
     # Create the loader
-    print("Initializing Metadata & Feature Loader...")
+    print("\nInitializing Metadata & Feature Loader...")
     loader = create_loader()
     
     all_pair_results = []
-    
-    print(f"Starting t-test on dataset pair: {dataset1_name} vs {dataset2_name}")
     
     if is_base12_pair:
         # Process multiple pairs for base12
         for pair_idx in range(K_BASE):
             try:
-                pair_results = process_single_pair(
+                pair_results, pair_elapsed = process_single_pair(
                     loader, 
                     pair_idx + 1, 
                     dataset1_name, 
@@ -275,6 +310,10 @@ if __name__ == "__main__":
                     SPLIT_DS_LEN
                 )
                 all_pair_results.extend(pair_results)
+                
+                # Save pair time
+                time_stats["pairs"][str(pair_idx + 1)] = pair_elapsed
+                time_stats["total_time_seconds"] += pair_elapsed
             except FileNotFoundError as e:
                 print(f"\nError: Pair {pair_idx + 1} not found, stopping.")
                 break
@@ -289,7 +328,7 @@ if __name__ == "__main__":
             else:
                 raise ValueError(f"Unknown dataset pair type: {dataset1_name} vs {dataset2_name}")
             
-            pair_results = process_single_pair(
+            pair_results, pair_elapsed = process_single_pair(
                 loader, 
                 pair_idx, 
                 dataset1_name, 
@@ -300,8 +339,27 @@ if __name__ == "__main__":
                 SPLIT_DS_LEN
             )
             all_pair_results.extend(pair_results)
+            
+            # Save pair time
+            time_stats["pairs"][str(pair_idx)] = pair_elapsed
+            time_stats["total_time_seconds"] += pair_elapsed
         except FileNotFoundError as e:
             print(f"\nError: {e}")
+    
+    # Calculate overall elapsed time
+    overall_elapsed = time.time() - overall_start_time
+    time_stats["end_time"] = datetime.datetime.now().isoformat()
+    time_stats["total_time_seconds"] = overall_elapsed
+    
+    # Format time
+    total_hours, total_rem = divmod(overall_elapsed, 3600)
+    total_minutes, total_seconds = divmod(total_rem, 60)
+    time_stats["total_time_formatted"] = f"{int(total_hours)}h {int(total_minutes)}m {total_seconds:.2f}s"
+    
+    # Save time stats
+    time_stats_file = os.path.join(TTest_OUTPUT_DIR, f"time_stats_{dataset1_name}_{dataset2_name}.json")
+    with open(time_stats_file, "w", encoding='utf-8') as f:
+        json.dump(time_stats, f, indent=2, ensure_ascii=False)
     
     # Save all combined results
     if all_pair_results:
@@ -316,4 +374,11 @@ if __name__ == "__main__":
         print(f"  Total tests: {len(t_stats)}")
         print(f"  Min t-statistic: {np.min(t_stats):.4f}")
         print(f"  Max t-statistic: {np.max(t_stats):.4f}")
+    
+    # Print final summary
+    print(f"\n{'='*60}")
+    print("All processing complete!")
+    print(f"Total elapsed time: {time_stats['total_time_formatted']}")
+    print(f"Time stats saved to: {time_stats_file}")
+    print(f"{'='*60}")
 
