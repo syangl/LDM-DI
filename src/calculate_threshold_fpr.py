@@ -6,11 +6,16 @@ if current_dir not in sys.path:
 from exp_utils.config_util.attack_config import OUTPUT_ROOT_PATH
 import numpy as np
 import json
+import random
 
 
-def load_t_stats_from_dir(ttest_dir):
+def load_t_stats_from_dir(ttest_dir, k_base=None):
     """
-    Load all t-statistics from a directory, returning both stats and dataset info
+    Load t-statistics from a directory, returning both stats and dataset info
+    
+    Args:
+        ttest_dir: Directory containing t-test results
+        k_base: Number of base12 pairs to load (None for all)
     """
     all_t_stats = []
     dataset_info_list = []
@@ -22,7 +27,25 @@ def load_t_stats_from_dir(ttest_dir):
     pair_dirs = [d for d in os.listdir(ttest_dir) if d.startswith("pair_") and os.path.isdir(os.path.join(ttest_dir, d))]
     pair_dirs.sort()
     
+    # Separate base12 pairs (numeric pair_idx) from others
+    base12_pair_dirs = []
+    other_pair_dirs = []
+    
     for pair_dir in pair_dirs:
+        pair_idx = pair_dir.split("_")[1]
+        if pair_idx.isdigit():
+            base12_pair_dirs.append(pair_dir)
+        else:
+            other_pair_dirs.append(pair_dir)
+    
+    # If k_base is specified, only load first k_base base12 pairs
+    if k_base is not None:
+        base12_pair_dirs = random.sample(base12_pair_dirs, k_base)
+    
+    # Combine base12 and other pairs
+    selected_pair_dirs = base12_pair_dirs + other_pair_dirs
+    
+    for pair_dir in selected_pair_dirs:
         pair_idx = pair_dir.split("_")[1]
         
         ttest_file_path = os.path.join(ttest_dir, pair_dir, f"ttest_pair_{pair_idx}_results.json")
@@ -100,14 +123,21 @@ def is_sus_hold_pair(ds1, ds2):
     return has_sus and has_hold
 
 
-def main():
+def main(k_base=None):
     DEFAULT_TTEST_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
     # Parameters
-    K_BASE = 500
+    DEFAULT_K_BASE = 400
     SPLIT_TIMES = 100
     ALPHA = 0.001 # significance level 
     
-    RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "threshold_fpr")
+    # Use provided k_base or default
+    K_BASE = k_base if k_base is not None else DEFAULT_K_BASE
+    
+    # Create output directory with k_base suffix if specified
+    if k_base is None:
+        RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "threshold_fpr")
+    else:
+        RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, f"threshold_fpr_kbase{K_BASE}")
     os.makedirs(RESULTS_OUTPUT_DIR, exist_ok=True)
     
     print("="*60)
@@ -116,7 +146,8 @@ def main():
     
     # Default to single directory mode
     print(f"\nReading t-test results from: {DEFAULT_TTEST_DIR}")
-    all_t_stats, all_dataset_info = load_t_stats_from_dir(DEFAULT_TTEST_DIR)
+    print(f"Using K_BASE = {K_BASE} pairs of base12 data")
+    all_t_stats, all_dataset_info = load_t_stats_from_dir(DEFAULT_TTEST_DIR, k_base=K_BASE)
     
     if len(all_t_stats) == 0:
         print("Error: No t-test results found!")
@@ -254,4 +285,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
