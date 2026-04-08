@@ -40,6 +40,7 @@ def load_t_stats_from_dir(ttest_dir, k_base=None):
     
     # If k_base is specified, only load first k_base base12 pairs
     if k_base is not None:
+        random.seed(0)
         base12_pair_dirs = random.sample(base12_pair_dirs, k_base)
     
     # Combine base12 and other pairs

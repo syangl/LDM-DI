@@ -77,7 +77,7 @@ def is_sus_hold_pair(ds1, ds2):
 def main():
     DEFAULT_CDI_DIR = os.path.join(OUTPUT_ROOT_PATH, "cdi_baseline")
     # Parameters - standard significance levels
-    ALPHA_LIST = [0.1, 0.05, 0.001]
+    ALPHA_LIST = [0.001]
     
     RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "baseline_fpr")
     os.makedirs(RESULTS_OUTPUT_DIR, exist_ok=True)
