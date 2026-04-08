@@ -50,7 +50,7 @@ def test_distribution_similarity(features1, features2):
     # Train a binary classifier using 20% of training data.
     # If the classifier can easily distinguish the two datasets through using a small part of data to train,
     # then the two datasets are not IID.
-    X4clf_train, X4clf_test, y4clf_train, y4clf_test = train_test_split(X4clf, y4clf, test_size=0.8, random_state=0, shuffle=True)
+    X4clf_train, X4clf_test, y4clf_train, y4clf_test = train_test_split(X4clf, y4clf, test_size=0.8, shuffle=True)
 
     X_train_tensor = torch.FloatTensor(X4clf_train)
     y_train_tensor = torch.FloatTensor(y4clf_train)
