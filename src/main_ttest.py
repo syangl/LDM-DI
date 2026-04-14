@@ -155,6 +155,16 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
     
     # Load features for this pair
     ds1_feats, ds2_feats = loader.load_dataset_pair_features(dataset1_name, dataset2_name, pair_idx)
+    # If dataset_total_num is less than loaded features, randomly sample to the target size
+    if attack_args.dataset_total_num < ds1_feats.shape[0]:
+        target_size = attack_args.dataset_total_num
+        # Use fixed seed for reproducibility
+        sampler = torch.Generator().manual_seed(0)
+        sampled_indices = torch.randperm(ds1_feats.shape[0], generator=sampler)[:target_size]
+        ds1_feats = ds1_feats[sampled_indices]
+        ds2_feats = ds2_feats[sampled_indices]
+        print(f"  Sampled {target_size} features for both datasets")
+
     
     print(f"  DS1 features shape: {ds1_feats.shape}")
     print(f"  DS2 features shape: {ds2_feats.shape}")
