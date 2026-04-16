@@ -19,7 +19,7 @@ def load_results_from_dir(cdi_dir):
     if not os.path.exists(cdi_dir):
         return np.array([]), np.array([]), []
     
-    # Look for hold_hold and sus_hold subdirectories
+    # look for hold_hold and sus_hold subdirectories
     subdirs = ["hold_hold", "sus_hold"]
     
     for subdir in subdirs:
@@ -86,15 +86,15 @@ def main():
     print("Calculating Baseline FPR/TPR using p-value and alpha")
     print("="*60)
     
-    # Read CDI baseline results
+    # read CDI baseline results
     print(f"\nReading CDI baseline results from: {DEFAULT_CDI_DIR}")
     all_p_values, _, all_dataset_info = load_results_from_dir(DEFAULT_CDI_DIR)
     
     if len(all_p_values) == 0:
-        print("Error: No CDI baseline results found!")
+        print("Error: No CDI baseline results found")
         return
     
-    # Separate into different categories
+    # separate into different categories
     hold_hold_p_values = []
     hold_hold_t_stats = []
     sus_hold_p_values = []
@@ -122,7 +122,7 @@ def main():
     sus_hold_p_values = np.array(sus_hold_p_values)
     sus_hold_t_stats = np.array(sus_hold_t_stats)
     
-    # Print summary of loaded data
+    # print summary of loaded data
     print(f"\nLoaded data summary:")
     print(f"Total results: {len(all_p_values)}")
     print(f"Hold-Hold results: {len(hold_hold_p_values)}")
@@ -132,7 +132,7 @@ def main():
     if sus_hold_info:
         print(f"Dataset pair: {sus_hold_info['dataset1']} vs {sus_hold_info['dataset2']}")
     
-    # Calculate FPR and TPR for each alpha
+    # calculate FPR and TPR for each alpha
     results_by_alpha = {}
     
     for alpha in ALPHA_LIST:
@@ -140,7 +140,7 @@ def main():
         print(f"Results for alpha = {alpha}")
         print(f"{'='*60}")
         
-        # Calculate FPR (false rejection rate on hold-hold pairs)
+        # calculate FPR (false rejection rate on hold-hold pairs)
         fpr = None
         num_false_rejections = None
         if len(hold_hold_p_values) > 0:
@@ -150,7 +150,7 @@ def main():
             print(f"Number of false rejections (p < alpha): {num_false_rejections}")
             print(f"FPR: {fpr:.6f}")
         
-        # Calculate TPR (true rejection rate on sus-hold pairs)
+        # calculate TPR (true rejection rate on sus-hold pairs)
         tpr = None
         num_true_rejections = None
         if len(sus_hold_p_values) > 0:
@@ -167,7 +167,7 @@ def main():
             "num_true_rejections": int(num_true_rejections) if num_true_rejections is not None else None
         }
     
-    # Save all results
+    # save all results
     results_dict = {
         "parameters": {
             "alpha_list": [float(a) for a in ALPHA_LIST],

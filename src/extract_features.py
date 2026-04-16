@@ -169,43 +169,6 @@ def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
             with open(scores_file, "r", encoding='utf-8') as f: 
                 scores = json.load(f)
     
-    # elif method == "hintmi":
-    #     print("Executing HintMI...")
-    #     scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
-    #                                f"hintmi_{choice}_scores_{split}.json")
-    #     if not os.path.exists(scores_file):
-    #         src_path = os.path.join(current_dir, "exp_utils/mi_util/ours_hintmi_src")
-    #         if src_path not in sys.path: sys.path.insert(0, src_path)
-    #         from exp_utils.mi_util.ours_hintmi_src.ours_hintmi import execute_hintmi
-            
-    #         scores = execute_hintmi(dataloader=dataloader, pipe=pipe, choice=choice)
-            
-    #         os.makedirs(os.path.dirname(scores_file), exist_ok=True)
-    #         with open(scores_file, "w", encoding='utf-8') as f: 
-    #             json.dump(scores, f)
-    #     else:
-    #         print(f"{scores_file} already exists, skipping inference.")
-    #         with open(scores_file, "r", encoding='utf-8') as f: 
-    #             scores = json.load(f)
-
-    # elif method == "semansim":
-    #     print("Executing Prompt Sensitivity...")
-    #     scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
-    #                                f"semansim_scores_{split}.json")
-    #     if not os.path.exists(scores_file):
-    #         src_path = os.path.join(current_dir, "exp_utils/mi_util/ours_semansim_src")
-    #         if src_path not in sys.path: sys.path.insert(0, src_path)
-    #         from exp_utils.mi_util.ours_semansim_src.ours_semansim import execute_semansim
-            
-    #         scores = execute_semansim(dataloader=dataloader, pipe=pipe, choice=choice)
-            
-    #         os.makedirs(os.path.dirname(scores_file), exist_ok=True)
-    #         with open(scores_file, "w", encoding='utf-8') as f: 
-    #             json.dump(scores, f)
-    #     else:
-    #         print(f"{scores_file} already exists, skipping inference.")
-    #         with open(scores_file, "r", encoding='utf-8') as f: 
-    #             scores = json.load(f)
     else:
         raise ValueError(f"Unknown MIA method {method}")
         
@@ -255,8 +218,6 @@ def extract_features_for_dataset(dataset_config, pipe, feat_dict_path):
         ("gradient_maskingmi", ""), 
         ("multiple_lossmi", ""), 
         ("noise_optimmi", ""),
-        # ("hintmi", "ssim"), ("hintmi", "ssim_center"), 
-        # ("hintmi", "ssim_entropy"), ("semansim", "cos_sim")
     ]
     
     for method, choice in methods:

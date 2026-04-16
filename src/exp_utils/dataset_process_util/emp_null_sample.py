@@ -308,7 +308,7 @@ if __name__ == "__main__":
         base2_file = os.path.join(OUTPUT_ROOT, f"pair_{pair_i + 1}_base2.json")
         
         if os.path.exists(base1_file) and os.path.exists(base2_file):
-            print(f"Pair {pair_i + 1} already exists, skipping.")
+            print(f"Pair {pair_i + 1} already exists, skipping")
             continue
         
         mixed_df_1, mixed_df_2 = split_datasets(prepared_df)

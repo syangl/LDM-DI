@@ -206,6 +206,6 @@ if __name__ == "__main__":
     save_metadata_only(df_hold_out_2, base2_file)
 
     print("\n" + "="*60)
-    print("Successfully generated D_hold_out_1 and D_hold_out_2!")
+    print("Successfully generated D_hold_out_1 and D_hold_out_2")
     print(f"Location: {OUTPUT_ROOT}")
     print("="*60)

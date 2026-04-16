@@ -88,7 +88,7 @@ if __name__ == "__main__":
     DATASET_TO_SPLIT_CONFIG = dataset_config_1
     DATASET_OUTPUT_DIR = HOLD_OUT_OUTPUT_DIR
     
-    # Configuration: set to None for equal split, or set to a number to select specific number of samples
+    # configuration: set to None for equal split, or set to a number to select specific number of samples
     SELECT_NUM = 1000
 
     tokenizer = CLIPTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"))

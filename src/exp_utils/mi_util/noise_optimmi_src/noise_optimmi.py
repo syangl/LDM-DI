@@ -112,7 +112,7 @@ def execute_noise_optimmi_attack(dataloader, pipe):
         loss_val = loss.item()
         l2_val = l2.item()
         
-        # Replace NaN with reasonable defaults
+        # replace NaN with reasonable defaults
         if np.isnan(loss_val):
             loss_val = 0.0
         if np.isnan(l2_val):

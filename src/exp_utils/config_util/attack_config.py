@@ -7,7 +7,7 @@ import torch
 def create_parser():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    # Pipeline group
+    # pipeline group
     pipeline_group = parser.add_argument_group("Pipeline Config")
     pipeline_group.add_argument("--dtype",
                                 default="float16",
@@ -33,7 +33,7 @@ def create_parser():
                                 help="Diffusion Model name")
 
 
-    # Attack group
+    # attack group
     attack_group = parser.add_argument_group("Attack Config")
     attack_group.add_argument("--num_samples",
                               type=int,
@@ -45,7 +45,7 @@ def create_parser():
                               default=512,
                               help="Resolution of generation")
 
-    # Dataset group
+    # dataset group
     dataset_group = parser.add_argument_group("Dataset Config")
     dataset_group.add_argument("--splits",
                                default=["train", "val"],
@@ -102,7 +102,7 @@ def create_parser():
         choices=["secmi", "structuralmi", "naivelossmi", "piami", "rediffusemi", "gradient_maskingmi", "multiple_lossmi", "noise_optimmi"],
         help="baseline type")
 
-    # Debug group
+    # debug group
     debug_group = parser.add_argument_group("Debug")
     debug_group.add_argument(
         "--is_visualize",
@@ -119,7 +119,7 @@ def create_parser():
     return parser
 
 
-# Global configuration
+# global configuration
 print("ArgumentParser Initializing...")
 
 # create attack args
@@ -224,7 +224,7 @@ with open(
 
 
 ####################################### Pipeline Inference Related #############################################
-# Unified parameter configuration
+# unified parameter configuration
 def get_unet_kwargs(pipe, **kwargs):
     # update kwargs
     encode_prompt_addtions = kwargs.get("encode_prompt_addtions", None)

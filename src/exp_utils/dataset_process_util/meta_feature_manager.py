@@ -193,10 +193,10 @@ class MetadataFeatureLoader:
         Load metadata for a single dataset by name
         Determines whether it's base12 pair or hold-out dataset automatically
         """
-        # Check if it's a hold-out dataset (starts with D_hold_out_)
+        # check if it's a hold-out dataset (starts with D_hold_out_)
         if dataset_name.startswith("D_hold_out_"):
             return self.load_hold_out_metadata(dataset_name)
-        # Check if it's D_base_1 or D_base_2 (but these are part of pairs)
+        # check if it's D_base_1 or D_base_2 (but these are part of pairs)
         elif dataset_name in ["D_base_1", "D_base_2"]:
             raise ValueError("D_base_1 and D_base_2 are only accessible as pairs, use load_base12_pair instead")
         else:

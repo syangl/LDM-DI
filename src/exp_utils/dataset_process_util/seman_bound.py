@@ -43,12 +43,12 @@ def test_distribution_similarity(features1, features2):
     X = np.array(features1)
     Y = np.array(features2)
 
-    # Train a classifier to distinguish between the two datasets
-    # If the classifier accuracy is close to 0.5, the two datasets are similar (closed to IID)
+    # train a classifier to distinguish between the two datasets
+    # if the classifier accuracy is close to 0.5, the two datasets are similar (closed to IID)
     X4clf = np.vstack([X, Y])
     y4clf = np.hstack([np.ones(len(X)), np.zeros(len(Y))])
-    # Train a binary classifier using 20% of training data.
-    # If the classifier can easily distinguish the two datasets through using a small part of data to train,
+    # train a binary classifier using 20% of training data.
+    # if the classifier can easily distinguish the two datasets through using a small part of data to train,
     # then the two datasets are not IID.
     X4clf_train, X4clf_test, y4clf_train, y4clf_test = train_test_split(X4clf, y4clf, test_size=0.8, shuffle=True)
 

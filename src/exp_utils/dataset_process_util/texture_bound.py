@@ -79,9 +79,9 @@ def check_dataset_complexity(dataloader1,
 
     detailed_report = {}
 
-    print("\n" + "=" * 80)
+    print("\n" + "=" * 60)
     print(f"{'Metric':<30} | {'Overlap':<10} | {'Mean Diff'}")
-    print("-" * 80)
+    print("-" * 60)
 
     # plot
     plt.rcParams['font.family'] = 'Times New Roman'
@@ -126,7 +126,7 @@ def check_dataset_complexity(dataloader1,
         ax.tick_params(axis='both', which='major', direction='in', labelsize=20)
         ax.grid(True, alpha=0.2)
 
-    print("-" * 80)
+    print("-" * 60)
     plt.tight_layout()
     plt.tick_params(axis='both', which='major', direction='in', labelsize=20)
 
