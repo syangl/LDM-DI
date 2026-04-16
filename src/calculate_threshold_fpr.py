@@ -126,15 +126,15 @@ def is_sus_hold_pair(ds1, ds2):
 
 def main(k_base=None):
     DEFAULT_TTEST_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
-    # Parameters
+    # parameters
     DEFAULT_K_BASE = 400
     SPLIT_TIMES = 100
     ALPHA = 0.001 # significance level 
     
-    # Use provided k_base or default
+    # use provided k_base or default
     K_BASE = k_base if k_base is not None else DEFAULT_K_BASE
     
-    # Create output directory with k_base suffix if specified
+    # create output directory with k_base suffix if specified
     if k_base is None:
         RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "threshold_fpr")
     else:
@@ -151,7 +151,7 @@ def main(k_base=None):
     all_t_stats, all_dataset_info = load_t_stats_from_dir(DEFAULT_TTEST_DIR, k_base=K_BASE)
     
     if len(all_t_stats) == 0:
-        print("Error: No t-test results found!")
+        print("Error: No t-test results found")
         return
     
     # Separate into different categories

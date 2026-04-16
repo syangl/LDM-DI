@@ -15,7 +15,7 @@ do
     
     # check state
     if [ $? -ne 0 ]; then
-        echo "Error: $method running failed!"
+        echo "Error: $method running failed"
         exit 1
     fi
 done

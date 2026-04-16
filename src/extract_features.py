@@ -247,7 +247,7 @@ def extract_features_for_dataset(dataset_config, pipe, feat_dict_path):
         features_dict[unique_id] = features_full[pos]
     
     # save feature dict
-    assert os.path.exists(os.path.dirname(feat_dict_path)), f"Feature dict path {feat_dict_path} does not exist!"
+    assert os.path.exists(os.path.dirname(feat_dict_path)), f"Feature dict path {feat_dict_path} does not exist"
     torch.save(features_dict, feat_dict_path)
     print(f"Successfully saved features dict for {dataset_name} to {feat_dict_path}")
     
@@ -294,7 +294,7 @@ if __name__ == "__main__":
         feat_dict_path = os.path.join(FEATURE_OUTPUT_DIR, f"{dataset_name}_{attack_args.model_name}_features_dict.pt")
         
         if os.path.exists(feat_dict_path):
-            print(f"Feature dict for {dataset_name} already exists! Skipping.")
+            print(f"Feature dict for {dataset_name} already exists, Skipping extraction.")
             continue
         
         # record start time
@@ -374,7 +374,6 @@ if __name__ == "__main__":
         json.dump(time_stats, f, indent=2, ensure_ascii=False)
     
     print(f"\n{'='*60}")
-    print("All datasets processed!")
     print(f"Actual total time: {time_stats['total_time_formatted']}")
     if USE_10_PERCENT_SAMPLING:
         print(f"Estimated full dataset total time: {time_stats['estimated_total_time_formatted']}")

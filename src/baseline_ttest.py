@@ -236,7 +236,6 @@ if __name__ == "__main__":
     
     # print final summary
     print(f"\n{'='*60}")
-    print("All processing complete!")
     print(f"Total elapsed time: {time_stats['total_time_formatted']}")
     print(f"Time stats saved to: {time_stats_file}")
     print(f"{'='*60}")
