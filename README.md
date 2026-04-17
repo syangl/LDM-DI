@@ -2,16 +2,17 @@
 
 ---
 
-## Abstract
+## 📋 Abstract
+
 The rapid adoption of pre-trained diffusion models has heightened concerns that these models may have been trained on unlicensed or proprietary datasets. Existing approaches for copyright detection are largely based on Membership Inference Attacks (MIAs). However, due to the nature of training large-scale diffusion models on massive training data, these models retain only a weak memorization of individual samples, rendering typical sample-level MIAs nearly ineffective. To overcome the fundamental limitations of sample-level MIAs, recent studies have focused on Dataset Inference (DI), which leverages aggregated MIA features to improve performance. Yet, such approaches rely on the strict Independent and Identically Distributed (IID) assumption, which is difficult to satisfy in practical copyright detection scenarios due to distribution shifts across detection datasets. To address the challenges of applying DI in real-world scenarios, in this paper, we theoretically break the strict IID assumption and propose a more realistic similar distribution assumption, quantifying the residual distribution shift in both the semantic and textural spaces. Based on this assumption, we propose a calibration DI framework for real-world detections and theoretically bound the false positive rate (FPR) under residual distribution shift. Extensive experiments demonstrate that our method maintains detection efficiency while suppressing the FPR in real-world scenarios.
 
 <img title="" src="imgs/overview.png" alt="" data-align="center">
 
 ---
 
-## Getting Started
+## 🚀 Getting Started
 
-### Environment
+### ⚙️ Environment
 
 Runtime environment requirements are listed in `src/requirements.txt`. Our experimental setup:
 
@@ -22,13 +23,67 @@ Runtime environment requirements are listed in `src/requirements.txt`. Our exper
 | Python | 3.12 |
 | CUDA | 12.8 |
 
-### Configuration
+### 📁 Configuration
 
 All experimental parameters are defined in `src/exp_utils/config_util/attack_config.py`.
 
 ---
 
-## Experimental Workflow
+## 📂 Project Structure
+
+```
+LDM-DI/
+├── src/
+│   ├── main_ttest.py              # Main DI framework
+│   ├── baseline_ttest.py          # Baseline DI paradigm
+│   ├── calculate_threshold_fpr.py  # FPR threshold calibration
+│   ├── baseline_calculate_fpr.py   # Baseline FPR evaluation
+│   ├── extract_features.py         # Feature extraction
+│   ├── requirements.txt
+│   └── exp_utils/
+│       ├── config_util/
+│       │   ├── attack_config.py
+│       │   └── random_provider.py
+│       ├── dataset_process_util/
+│       │   ├── clip_knn.py         # CLIP-KNN distribution alignment
+│       │   ├── seman_bound.py      # Semantic similarity bound
+│       │   ├── texture_bound.py    # Textural complexity bound
+│       │   ├── emp_null_sample.py  # SCNS hold-out generation
+│       │   ├── generate_hold_out_datasets.py
+│       │   ├── random_select_subset.py
+│       │   ├── meta_feature_manager.py
+│       │   └── img_preprocess.py
+│       ├── mi_util/
+│       │   ├── baseline_mi_main.py # Individual MIA runner
+│       │   ├── piami_src/
+│       │   ├── noise_optimmi_src/
+│       │   ├── naivelossmi_src/
+│       │   ├── structuralmi_src/
+│       │   ├── secmi_src/
+│       │   ├── rediffusemi_src/
+│       │   ├── gradient_maskingmi_src/
+│       │   └── multiple_lossmi_src/
+│       ├── load_util/
+│       │   └── load_data.py
+│       ├── metric_util/
+│       │   └── evaluate.py
+│       └── pipeline_util/
+│           ├── txt2img_pipeline_select.py
+│           └── img2img_pipeline_select.py
+├── dataset/
+│   ├── laion-aesthetics_v2_over_4p75/
+│   ├── laion2b-multi-translated-hf/
+│   ├── coco/
+│   ├── commoncatalog/
+│   ├── nocaps/
+│   └── clean_bad_images.py
+└── imgs/
+    └── overview.png
+```
+
+---
+
+## 🧪 Experimental Workflow
 
 ### 1. Prepare Datasets
 
@@ -75,7 +130,7 @@ python src/exp_utils/mi_util/baseline_mi_main.py
 
 ---
 
-## Models & Datasets
+## 🤖 Models & Datasets
 
 ### Pre-trained Models
 
