@@ -2,20 +2,20 @@ import json
 import os
 from tqdm import tqdm
 
-# Paths
+# paths
 YEAR = "2014"
 ANNOTATION_PATH = f"YOUR_LOCAL_DATASET/coco_{YEAR}_val/raw/captions_val{YEAR}.json"
 IMAGE_DIR = f"YOUR_LOCAL_DATASET/coco_{YEAR}_val/data/val"
 META_OUTPUT_DIR = f"YOUR_LOCAL_DATASET/coco_{YEAR}_val/metadata/meta_coco_{YEAR}_val.jsonl"
 
-# Load annotations
+# load annotations
 with open(ANNOTATION_PATH, "r") as f:
     data = json.load(f)
 
-# Get downloaded image names
+# get downloaded image names
 downloaded_images = set(os.listdir(IMAGE_DIR))
 
-# Build image_id_to_captions map
+# build image_id_to_captions map
 image_id_to_captions = {}
 for ann in data["annotations"]:
     image_id = ann["image_id"]
@@ -24,10 +24,10 @@ for ann in data["annotations"]:
         image_id_to_captions[image_id] = []
     image_id_to_captions[image_id].append(caption)
 
-# Build metadata
+# build metadata
 metadata = []
 
-# Filter downloaded images
+# filter downloaded images
 for img in data["images"]:
     file_name = img["file_name"]
     if file_name in downloaded_images:
@@ -39,7 +39,7 @@ for img in data["images"]:
             "caption": image_id_to_captions.get(image_id, []),
         })
 
-# Rename image file name
+# rename image file name
 if not os.path.exists(META_OUTPUT_DIR):
     for meta in tqdm(metadata, desc="Renaming image files", total=len(metadata)):
         file_name = meta["local_path"].split("/")[-1]
@@ -48,7 +48,7 @@ if not os.path.exists(META_OUTPUT_DIR):
         os.rename(meta["local_path"], new_local_path)
         meta["local_path"] = new_local_path
 
-# Save metadata
+# save metadata
 os.makedirs(os.path.dirname(META_OUTPUT_DIR), exist_ok=True)
 with open(META_OUTPUT_DIR, "w", encoding="utf-8") as f:
     for meta in metadata:

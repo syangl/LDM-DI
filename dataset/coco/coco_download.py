@@ -24,7 +24,7 @@ if __name__ == '__main__':
 
         print(f"\nSuccessfully loaded {len(dataset)} samples into dataset: '{dataset.name}'")
 
-        # Visualize the dataset in the FiftyOne App
+        # visualize the dataset in the FiftyOne App
         session = fo.launch_app(dataset)
 
     except Exception as e:

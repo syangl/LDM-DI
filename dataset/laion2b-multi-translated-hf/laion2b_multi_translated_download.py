@@ -147,7 +147,7 @@ def main():
                 f.write(json.dumps(meta, ensure_ascii=False) + "\n")
         print(f"Metadata saved to {META_PATH}")
 
-    # Get metadata
+    # get metadata
     samples = []
     with open(META_PATH, 'r', encoding='utf-8') as f:
         for line in f:
