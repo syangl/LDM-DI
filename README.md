@@ -1,5 +1,5 @@
 # Description
-This is the code for Calibrating Dataset Inference for Diffusion Models under Realistic Similar Distributions
+This is the code for Calibrating Dataset Inference for Diffusion Models under Realistic Similar Distributions.
 
 
 ## 📋 Abstract
