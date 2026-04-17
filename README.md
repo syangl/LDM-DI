@@ -1,6 +1,5 @@
 # Calibrating Dataset Inference for Diffusion Models under Realistic Similar Distributions
 
----
 
 ## 📋 Abstract
 
@@ -34,27 +33,27 @@ All experimental parameters are defined in `src/exp_utils/config_util/attack_con
 ```
 LDM-DI/
 ├── src/
-│   ├── main_ttest.py              # Main DI framework
-│   ├── baseline_ttest.py          # Baseline DI paradigm
-│   ├── calculate_threshold_fpr.py  # FPR threshold calibration
-│   ├── baseline_calculate_fpr.py   # Baseline FPR evaluation
-│   ├── extract_features.py         # Feature extraction
+│   ├── main_ttest.py                           # Main DI framework
+│   ├── baseline_ttest.py                       # Baseline DI paradigm
+│   ├── calculate_threshold_fpr.py              # FPR threshold calibration
+│   ├── baseline_calculate_fpr.py               # Baseline FPR evaluation
+│   ├── extract_features.py                     # Feature extraction
 │   ├── requirements.txt
 │   └── exp_utils/
 │       ├── config_util/
 │       │   ├── attack_config.py
 │       │   └── random_provider.py
 │       ├── dataset_process_util/
-│       │   ├── clip_knn.py         # CLIP-KNN distribution alignment
-│       │   ├── seman_bound.py      # Semantic similarity bound
-│       │   ├── texture_bound.py    # Textural complexity bound
-│       │   ├── emp_null_sample.py  # SCNS hold-out generation
+│       │   ├── clip_knn.py                     # CLIP-KNN distribution alignment
+│       │   ├── seman_bound.py                  # Semantic similarity bound
+│       │   ├── texture_bound.py                # Textural complexity bound
+│       │   ├── emp_null_sample.py              # SCNS hold-out generation
 │       │   ├── generate_hold_out_datasets.py
 │       │   ├── random_select_subset.py
 │       │   ├── meta_feature_manager.py
 │       │   └── img_preprocess.py
 │       ├── mi_util/
-│       │   ├── baseline_mi_main.py # Individual MIA runner
+│       │   ├── baseline_mi_main.py             # Individual MIA runner
 │       │   ├── piami_src/
 │       │   ├── noise_optimmi_src/
 │       │   ├── naivelossmi_src/
