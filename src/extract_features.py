@@ -4,6 +4,10 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 from exp_utils.config_util.attack_config import attack_args, PIPE_TYPE, OUTPUT_ROOT_PATH
+if attack_args.experiment == "rq1":
+    FEATURE_ROOT_PATH = os.path.join(OUTPUT_ROOT_PATH, "experiments", "RQ1_standard_di_vulnerability", "mia_features")
+else:
+    FEATURE_ROOT_PATH = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "mia_features")
 from exp_utils.load_util.load_data import create_dataset_dataloader, get_img_dataLoader
 from exp_utils.pipeline_util.txt2img_pipeline_select import txt2img_pipeline_select
 
@@ -21,7 +25,7 @@ def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
     
     if method == "structuralmi":
         print("Executing StructuralMI...")
-        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+        scores_file = os.path.join(f"{FEATURE_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/",
                                    f"structuralmi_{choice}_scores_{split}.json")
         if not os.path.exists(scores_file):
             src_path = os.path.join(current_dir, "exp_utils/mi_util/structuralmi_src")
@@ -40,7 +44,7 @@ def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
             
     elif method == "secmi":
         print("Executing SecMI...")
-        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+        scores_file = os.path.join(f"{FEATURE_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/",
                                    f"secmi_scores_{split}.json")
         if not os.path.exists(scores_file):
             src_path = os.path.join(current_dir, "exp_utils/mi_util/secmi_src")
@@ -60,7 +64,7 @@ def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
 
     elif method == "naivelossmi":
         print("Executing NaiveLossMI...")
-        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+        scores_file = os.path.join(f"{FEATURE_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/",
                                    f"naivelossmi_scores_{split}.json")
         if not os.path.exists(scores_file):
             src_path = os.path.join(current_dir, "exp_utils/mi_util/naivelossmi_src")
@@ -79,7 +83,7 @@ def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
 
     elif method == "piami":
         print("Executing PiAMI...")
-        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+        scores_file = os.path.join(f"{FEATURE_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/",
                                    f"piami_scores_{split}.json")
         if not os.path.exists(scores_file):
             src_path = os.path.join(current_dir, "exp_utils/mi_util/piami_src")
@@ -98,7 +102,7 @@ def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
 
     elif method == "rediffusemi":
         print("Executing RediffuseMI...")
-        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+        scores_file = os.path.join(f"{FEATURE_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/",
                                    f"rediffusemi_{choice}_scores_{split}.json")
         if not os.path.exists(scores_file):
             src_path = os.path.join(current_dir, "exp_utils/mi_util/rediffusemi_src")
@@ -116,7 +120,7 @@ def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
                 scores = json.load(f)
     elif method == "gradient_maskingmi":
         print("Executing GradientMaskingMI...")
-        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+        scores_file = os.path.join(f"{FEATURE_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/",
                                    f"gradient_maskingmi_scores_{split}.json")
         if not os.path.exists(scores_file):
             src_path = os.path.join(current_dir, "exp_utils/mi_util/gradient_maskingmi_src")
@@ -134,7 +138,7 @@ def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
                 scores = json.load(f)
     elif method == "multiple_lossmi":
         print("Executing MultipleLossMI...")
-        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+        scores_file = os.path.join(f"{FEATURE_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/",
                                    f"multiple_lossmi_scores_{split}.json")
         if not os.path.exists(scores_file):
             src_path = os.path.join(current_dir, "exp_utils/mi_util/multiple_lossmi_src")
@@ -152,7 +156,7 @@ def exec_mia(dataset_name, method, pipe, dataloader, choice=''):
                 scores = json.load(f)
     elif method == "noise_optimmi":
         print("Executing NoiseOptimMI...")
-        scores_file = os.path.join(f"{OUTPUT_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/", 
+        scores_file = os.path.join(f"{FEATURE_ROOT_PATH}/offline_single_feature/{dataset_name}/{attack_args.model_name}/",
                                    f"noise_optimmi_scores_{split}.json")
         if not os.path.exists(scores_file):
             src_path = os.path.join(current_dir, "exp_utils/mi_util/noise_optimmi_src")
@@ -254,12 +258,12 @@ def extract_features_for_dataset(dataset_config, pipe, feat_dict_path):
     return features_full, features_dict
 
 if __name__ == "__main__":
-    FEATURE_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "offline_features")
+    FEATURE_OUTPUT_DIR = os.path.join(FEATURE_ROOT_PATH, "offline_features")
     os.makedirs(FEATURE_OUTPUT_DIR, exist_ok=True)
     
     # 10% sampling flag
-    USE_10_PERCENT_SAMPLING = True
-    SAMPLING_RATIO = 0.1
+    USE_10_PERCENT_SAMPLING = False
+    SAMPLING_RATIO = 1.0
     
     # original datasets
     dataset_names = [
@@ -285,6 +289,7 @@ if __name__ == "__main__":
         "use_10_percent_sampling": USE_10_PERCENT_SAMPLING,
         "sampling_ratio": SAMPLING_RATIO,
         "datasets": {},
+        "cached_datasets": [],
         "total_time_seconds": 0,
         "estimated_total_time_seconds": 0
     }
@@ -294,6 +299,7 @@ if __name__ == "__main__":
         feat_dict_path = os.path.join(FEATURE_OUTPUT_DIR, f"{dataset_name}_{attack_args.model_name}_features_dict.pt")
         
         if os.path.exists(feat_dict_path):
+            time_stats["cached_datasets"].append(dataset_name)
             print(f"Feature dict for {dataset_name} already exists, Skipping extraction.")
             continue
         

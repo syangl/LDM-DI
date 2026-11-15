@@ -3,7 +3,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from exp_utils.config_util.attack_config import OUTPUT_ROOT_PATH
+from exp_utils.config_util.attack_config import OUTPUT_ROOT_PATH, attack_args
 import numpy as np
 import json
 
@@ -75,11 +75,11 @@ def is_sus_hold_pair(ds1, ds2):
 
 
 def main():
-    DEFAULT_CDI_DIR = os.path.join(OUTPUT_ROOT_PATH, "cdi_baseline")
+    DEFAULT_CDI_DIR = os.path.join(OUTPUT_ROOT_PATH, "experiments", "RQ1_standard_di_vulnerability", "cdi_baseline", attack_args.model_name)
     # Parameters - standard significance levels
     ALPHA_LIST = [0.001]
     
-    RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "baseline_fpr")
+    RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "plot_analyze", "RQ1_standard_di_vulnerability", "baseline_fpr", attack_args.model_name)
     os.makedirs(RESULTS_OUTPUT_DIR, exist_ok=True)
     
     print("="*60)

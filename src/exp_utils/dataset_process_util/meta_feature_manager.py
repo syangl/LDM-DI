@@ -6,8 +6,7 @@ if project_root not in sys.path:
 
 import json
 import torch
-from exp_utils.config_util.attack_config import OUTPUT_ROOT_PATH, attack_args
-from exp_utils.dataset_process_util.emp_null_sample import OUTPUT_ROOT as D_BASE_METADATA_OUTPUT_ROOT
+from exp_utils.config_util.attack_config import OUTPUT_ROOT_PATH, attack_args, METADATA_ROOT_PATH, BASE_METADATA_ROOT_PATH
 
 class MetadataFeatureLoader:
     """
@@ -15,8 +14,10 @@ class MetadataFeatureLoader:
     """
     
     def __init__(self, feature_output_dir=None, d_base_metadata_output_dir=None):
-        self.feature_output_dir = feature_output_dir or os.path.join(OUTPUT_ROOT_PATH, "offline_features")
-        self.d_base_metadata_output_dir = d_base_metadata_output_dir or D_BASE_METADATA_OUTPUT_ROOT
+        section = "RQ1_standard_di_vulnerability" if attack_args.experiment == "rq1" else "shared_res"
+        self.feature_output_dir = feature_output_dir or attack_args.feature_root or os.path.join(OUTPUT_ROOT_PATH, "experiments", section, "mia_features", "offline_features")
+        self.metadata_root = METADATA_ROOT_PATH
+        self.d_base_metadata_output_dir = d_base_metadata_output_dir or os.path.join(BASE_METADATA_ROOT_PATH, "D_base")
         self.local_dataset_path = attack_args.local_dataset_path
         
         # initialize cached data
@@ -164,8 +165,14 @@ class MetadataFeatureLoader:
         if metadata_list is None:
             return None
         
+        split = "train" if dataset_name in ["commoncatalog_cc_by_sa", "laion_aesthetics_v2_5p0"] else "val"
+        image_dir = os.path.join(self.local_dataset_path, dataset_name, "data", split)
+        image_indices = {int(os.path.splitext(name)[0]) for name in os.listdir(image_dir)}
         result = []
         for item in metadata_list:
+            # Caption files can include samples absent from the saved image pool.
+            if int(item['index']) not in image_indices:
+                continue
             result.append({
                 'source_dataset': dataset_name,
                 'original_index': int(item.get('index'))
@@ -178,7 +185,7 @@ class MetadataFeatureLoader:
         Load hold-out dataset metadata
         Returns: metadata_list
         """
-        hold_out_file = os.path.join(self.local_dataset_path, dataset_name, "metadata", f"meta_{dataset_name}.json")
+        hold_out_file = os.path.join(self.metadata_root, dataset_name, "metadata", f"meta_{dataset_name}.json")
         
         if not os.path.exists(hold_out_file):
             raise FileNotFoundError(f"Hold-out dataset metadata not found for {dataset_name}: {hold_out_file}")
@@ -201,7 +208,7 @@ class MetadataFeatureLoader:
             raise ValueError("D_base_1 and D_base_2 are only accessible as pairs, use load_base12_pair instead")
         else:
             # for original training/hold-out dataset names, try to load as single dataset metadata
-            metadata_file_json = os.path.join(self.local_dataset_path, dataset_name, "metadata", f"meta_{dataset_name}.json")
+            metadata_file_json = os.path.join(self.metadata_root, dataset_name, "metadata", f"meta_{dataset_name}.json")
             if os.path.exists(metadata_file_json):
                 metadata = self._load_metadata_file(metadata_file_json)
                 if metadata is not None:

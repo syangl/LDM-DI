@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
 # all baselines need to run
 BASELINES=("secmi" "piami" "naivelossmi" "rediffusemi" "structuralmi")
 
@@ -11,7 +13,7 @@ do
     echo "Current Running Baseline: $method"
     echo "========================================"
     
-    python exp_utils/mi_util/baseline_mi_main.py --baseline "$method" --is_remove
+    python "$SCRIPT_DIR/exp_utils/mi_util/baseline_mi_main.py" --baseline "$method" --is_remove "$@"
     
     # check state
     if [ $? -ne 0 ]; then

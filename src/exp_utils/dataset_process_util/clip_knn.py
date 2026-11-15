@@ -14,10 +14,10 @@ from exp_utils.load_util.load_data import create_dataset_dataloader
 from exp_utils.config_util.attack_config import attack_args, TRAIN_OUTPUT_DIR, dataset_config_1, OUTPUT_ROOT_PATH
 import json
 import clip
-from transformers import CLIPTokenizer
+from transformers import AutoTokenizer
 
 D_HOLD_OUT_NAME = f"D_hold_out_{dataset_config_1['dataset']}"
-D_HOLD_OUT_OUTPUT_ROOT = os.path.join(attack_args.local_dataset_path, D_HOLD_OUT_NAME, "metadata")
+D_HOLD_OUT_OUTPUT_ROOT = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "datasets", D_HOLD_OUT_NAME, "metadata")
 
 class DistributionOverlapFinder:
     def __init__(self):
@@ -185,7 +185,7 @@ def find_overlap_main(
 if __name__ == "__main__":
     TARGET_NUM = attack_args.dataset_total_num
     TOTAL_NUM = 3000
-    tokenizer = CLIPTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"))
+    tokenizer = AutoTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"), use_fast=False)
 
     # dataset 1
     dataloader1, dataset1 = create_dataset_dataloader(TRAIN_OUTPUT_DIR,
@@ -242,7 +242,7 @@ if __name__ == "__main__":
                     'original_index': int(index),
                 })
             excluded_ds_name = f"D_hold_out_{dataset_config_1['dataset']}_sub"
-            output_file = os.path.join(attack_args.local_dataset_path, excluded_ds_name, "metadata", f"meta_{excluded_ds_name}.json")
+            output_file = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "datasets", excluded_ds_name, "metadata", f"meta_{excluded_ds_name}.json")
             os.makedirs(os.path.dirname(output_file), exist_ok=True)
             with open(output_file, 'w', encoding='utf-8') as f:
                 json.dump(metadata_list, f, indent=4)

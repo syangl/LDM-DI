@@ -12,7 +12,7 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 from exp_utils.load_util.load_data import create_dataset_dataloader
 from exp_utils.config_util.attack_config import attack_args, dataset_plot_names, TRAIN_OUTPUT_DIR, dataset_config_1, HOLD_OUT_OUTPUT_DIR, dataset_config_2, STATISTIC_ROOT_PATH
-from transformers import CLIPTokenizer
+from transformers import AutoTokenizer
 import json
 
 
@@ -137,7 +137,7 @@ def check_dataset_complexity(dataloader1,
 
 
 if __name__ == "__main__":
-    tokenizer = tokenizer = CLIPTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"))
+    tokenizer = tokenizer = AutoTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"), use_fast=False)
     dataloader1, _ = create_dataset_dataloader(TRAIN_OUTPUT_DIR,
                                                dataset_config_1,
                                                tokenizer,

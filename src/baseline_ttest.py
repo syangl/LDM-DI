@@ -151,7 +151,7 @@ def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT
         "dataset2": dataset2_name,
         "p_value": float(p_value),
         "t_statistic": float(t_statistic),
-        "is_correct_order": is_correct_order,
+        "is_correct_order": bool(is_correct_order),
         "test_elapsed_seconds": test_elapsed,
         "members_scores": members_scores_np.tolist(),
         "nonmembers_scores": nonmembers_scores_np.tolist()
@@ -164,12 +164,12 @@ def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT
 
 
 if __name__ == "__main__":
-    SPLIT_TIMES = 10  # Number of repeated tests
+    SPLIT_TIMES = attack_args.split_times  # Number of repeated tests
     
     dataset1_name = attack_args.used_datasets[0]
     dataset2_name = attack_args.used_datasets[1]
     
-    CDI_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "cdi_baseline")
+    CDI_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "experiments", "RQ1_standard_di_vulnerability", "cdi_baseline", attack_args.model_name)
     os.makedirs(CDI_OUTPUT_DIR, exist_ok=True)
     
     # time tracking
@@ -208,7 +208,7 @@ if __name__ == "__main__":
             time_stats["tests"][str(test_i)] = test_elapsed
             time_stats["total_time_seconds"] += test_elapsed
         except FileNotFoundError as e:
-                print(f"\nError: {e}")
+                raise
     
     # calculate overall elapsed time
     overall_elapsed = time.time() - overall_start_time
@@ -220,6 +220,10 @@ if __name__ == "__main__":
     total_minutes, total_seconds = divmod(total_rem, 60)
     time_stats["total_time_formatted"] = f"{int(total_hours)}h {int(total_minutes)}m {total_seconds:.2f}s"
     
+    measured_tests = [r['test_elapsed_seconds'] for r in all_results if 'test_elapsed_seconds' in r]
+    if measured_tests:
+        time_stats["mean_test_seconds"] = float(np.mean(measured_tests))
+
     # save time stats
     time_stats_file = os.path.join(CDI_OUTPUT_DIR, f"time_stats_{dataset1_name}_{dataset2_name}.json")
     with open(time_stats_file, "w", encoding='utf-8') as f:

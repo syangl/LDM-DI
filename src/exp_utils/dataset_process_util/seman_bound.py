@@ -1,6 +1,6 @@
 import numpy as np
 from sklearn.decomposition import PCA
-from transformers import CLIPTokenizer
+from transformers import AutoTokenizer
 import clip
 import torch
 from tqdm import tqdm
@@ -103,7 +103,7 @@ def test_distribution_similarity(features1, features2):
 
 if __name__ == "__main__":
     # create_dataset_dataloader needs to load the tokenizer, although we do not use the tokenizer here
-    tokenizer = CLIPTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"))
+    tokenizer = AutoTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"), use_fast=False)
 
     dataloader1, _ = create_dataset_dataloader(
         TRAIN_OUTPUT_DIR,

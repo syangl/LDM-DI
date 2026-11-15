@@ -6,9 +6,9 @@ if project_root not in sys.path:
 import json
 import random
 from tqdm import tqdm
-from transformers import CLIPTokenizer
+from transformers import AutoTokenizer
 from exp_utils.load_util.load_data import create_dataset_dataloader
-from exp_utils.config_util.attack_config import attack_args, HOLD_OUT_OUTPUT_DIR, dataset_config_1
+from exp_utils.config_util.attack_config import attack_args, HOLD_OUT_OUTPUT_DIR, OUTPUT_ROOT_PATH, dataset_config_1
 
 
 def save_split_metadata_only(
@@ -23,7 +23,7 @@ def save_split_metadata_only(
 
     # paths
     split_dataset_name = f"{original_dataset_name}_{split_name}"
-    save_dir = os.path.join(attack_args.local_dataset_path, split_dataset_name, "metadata")  
+    save_dir = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "datasets", split_dataset_name, "metadata")
     os.makedirs(save_dir, exist_ok=True)
 
     # Create metadata list with source_dataset and original_index
@@ -91,7 +91,7 @@ if __name__ == "__main__":
     # configuration: set to None for equal split, or set to a number to select specific number of samples
     SELECT_NUM = 1000
 
-    tokenizer = CLIPTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"))
+    tokenizer = AutoTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"), use_fast=False)
 
     dataloader_to_split, _ = create_dataset_dataloader(
         output_dir=DATASET_OUTPUT_DIR,

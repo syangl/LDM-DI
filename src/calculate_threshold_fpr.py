@@ -3,7 +3,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
-from exp_utils.config_util.attack_config import OUTPUT_ROOT_PATH
+from exp_utils.config_util.attack_config import OUTPUT_ROOT_PATH, attack_args
 import numpy as np
 import json
 import random
@@ -125,10 +125,14 @@ def is_sus_hold_pair(ds1, ds2):
 
 
 def main(k_base=None):
-    DEFAULT_TTEST_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
+    if attack_args.experiment == "rq2_rq5":
+        run_dir = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "RQ2_RQ5_calibration_pool", "intermediate", attack_args.model_name)
+    else:
+        run_dir = os.path.join(OUTPUT_ROOT_PATH, "experiments", "RQ3_calibration_performance", attack_args.model_name)
+    DEFAULT_TTEST_DIR = os.path.join(run_dir, "ttest")
     # parameters
-    DEFAULT_K_BASE = 400
-    SPLIT_TIMES = 100
+    DEFAULT_K_BASE = attack_args.k_base
+    SPLIT_TIMES = attack_args.split_times
     ALPHA = 0.001 # significance level 
     
     # use provided k_base or default
@@ -136,9 +140,9 @@ def main(k_base=None):
     
     # create output directory with k_base suffix if specified
     if k_base is None:
-        RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "threshold_fpr")
+        RESULTS_OUTPUT_DIR = os.path.join(run_dir, "threshold_fpr")
     else:
-        RESULTS_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, f"threshold_fpr_kbase{K_BASE}")
+        RESULTS_OUTPUT_DIR = os.path.join(run_dir, f"threshold_fpr_kbase{K_BASE}")
     os.makedirs(RESULTS_OUTPUT_DIR, exist_ok=True)
     
     print("="*60)

@@ -4,20 +4,11 @@ from tqdm import tqdm
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from exp_utils.config_util.random_provider import global_random
-from exp_utils.config_util.attack_config import attack_args
+from exp_utils.config_util.attack_config import attack_args, ORIGINAL_DATASETS
 from PIL import Image
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms as tfms
 import torch
-
-
-ORIGINAL_DATASETS = [
-    "commoncatalog_cc_by_sa",
-    "laion_aesthetics_v2_5p0",
-    "coco_2017_val",
-    "laion2b_multi_translated",
-    "nocaps",
-]
 
 
 class ImageDS(Dataset):

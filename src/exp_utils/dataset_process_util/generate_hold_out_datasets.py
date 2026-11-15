@@ -13,8 +13,8 @@ from tqdm import tqdm
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans
 import clip
-from transformers import CLIPTokenizer
-from exp_utils.config_util.attack_config import attack_args, HOLD_OUT_OUTPUT_DIR
+from transformers import AutoTokenizer
+from exp_utils.config_util.attack_config import attack_args, HOLD_OUT_OUTPUT_DIR, OUTPUT_ROOT_PATH
 from exp_utils.load_util.load_data import create_dataset_dataloader
 
 
@@ -22,7 +22,7 @@ TARGET_TOTAL_SAMPLES = 1000
 LOAD_NUM = 3000
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-OUTPUT_ROOT = os.path.join(attack_args.local_dataset_path)
+OUTPUT_ROOT = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "datasets")
 
 
 def save_metadata_only(df, output_file):
@@ -148,8 +148,8 @@ def split_datasets(df):
 
 
 if __name__ == "__main__":
-    tokenizer = CLIPTokenizer.from_pretrained(
-        os.path.join(attack_args.base_model_id, "tokenizer"))
+    tokenizer = AutoTokenizer.from_pretrained(
+        os.path.join(attack_args.base_model_id, "tokenizer"), use_fast=False)
 
     print("="*60)
     print("Generating hold-out datasets D_hold_out_1 and D_hold_out_2...")

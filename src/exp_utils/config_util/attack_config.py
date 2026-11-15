@@ -1,4 +1,5 @@
 import argparse
+import sys
 import os
 import json
 import torch
@@ -20,7 +21,7 @@ def create_parser():
 
     pipeline_group.add_argument("--local_dataset_path",
                                 default="YOUR_LOCAL_DATASET_PATH",
-                                help="Local dataset path, should contain all datasets used in this attack")
+                                help="Root directory containing the source datasets")
 
     pipeline_group.add_argument("--model_name",
                                 type=str,
@@ -93,6 +94,25 @@ def create_parser():
                                default=1000,
                                help="Total number of dataset")
 
+    dataset_group.add_argument("--k_base", type=int, default=400,
+                               help="Number of empirical null pairs")
+    dataset_group.add_argument("--split_times", type=int, default=100,
+                               help="Repeated tests per evaluation pair")
+    dataset_group.add_argument("--dataset_sizes", type=int, nargs="+",
+                               default=[10, 20, 50, 100, 200, 300, 400, 500],
+                               help="Dataset sizes for RQ6")
+    dataset_group.add_argument("--rq1_reference", help="RQ1 JSON containing shift levels and dataset mixture ratios")
+    dataset_group.add_argument("--rq2_root", help="Shared RQ2/RQ5 input directory containing datasets and intermediate")
+    parser.add_argument("--output_root", default=os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../exp_data")), help="Project output root containing experiments and plot_analyze")
+    parser.add_argument("--metadata_root", help="Directory containing saved D_base and hold-out metadata")
+    parser.add_argument("--feature_root", help="Directory containing saved offline feature dictionaries")
+
+    parser.add_argument("--experiment", choices=["rq1", "rq2_rq5", "rq3"], default="rq3",
+                        help="Experiment context for shared feature and calibration outputs")
+    parser.add_argument("--num_pairs", type=int, default=500, help="Number of null metadata pairs to generate")
+    parser.add_argument("--metric_group", choices=["classifier_validation", "5p0_hold", "ccby_hold", "Dhold12"],
+                        help="Output group for semantic and textural distribution measurements")
+
     # baseline group
     baseline_group = parser.add_argument_group("Baseline Config")
     baseline_group.add_argument(
@@ -160,27 +180,58 @@ assert len(attack_args.splits) == 2, \
     "attack_args.splits must have two elements."
 
 
+# Assign measurement output groups by dataset pair.
+metric_groups = {
+    ("coco_2017_val", "coco_2017_val"): "classifier_validation",
+    ("laion2b_multi_translated", "coco_2017_val"): "classifier_validation",
+    ("nocaps", "coco_2017_val"): "classifier_validation",
+    ("laion_aesthetics_v2_5p0", "D_hold_out_laion_aesthetics_v2_5p0"): "5p0_hold",
+    ("commoncatalog_cc_by_sa", "D_hold_out_commoncatalog_cc_by_sa"): "ccby_hold",
+    ("D_hold_out_1", "D_hold_out_2"): "Dhold12",
+}
+metric_pair = tuple(attack_args.used_datasets)
+if attack_args.metric_group is None and metric_pair in metric_groups:
+    attack_args.metric_group = metric_groups[metric_pair]
+
 # output root path
-OUTPUT_ROOT_PATH = f"./exp_data"
+OUTPUT_ROOT_PATH = attack_args.output_root
+ORIGINAL_DATASETS = [
+    "commoncatalog_cc_by_sa",
+    "laion_aesthetics_v2_5p0",
+    "coco_2017_val",
+    "laion2b_multi_translated",
+    "nocaps",
+]
+METADATA_ROOT_PATH = attack_args.metadata_root or os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "datasets")
+if attack_args.experiment == "rq2_rq5":
+    BASE_METADATA_ROOT_PATH = attack_args.metadata_root or os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "RQ2_RQ5_calibration_pool", "datasets")
+else:
+    BASE_METADATA_ROOT_PATH = METADATA_ROOT_PATH
+
 # statistic path
-STATISTIC_ROOT_PATH = f"{OUTPUT_ROOT_PATH}/statistic/"
+if attack_args.metric_group == "classifier_validation":
+    STATISTIC_ROOT_PATH = f"{OUTPUT_ROOT_PATH}/experiments/shared_res/classifier_validation/"
+elif attack_args.metric_group is not None:
+    STATISTIC_ROOT_PATH = f"{OUTPUT_ROOT_PATH}/experiments/RQ2_hyperparameters/distribution_metrics/{attack_args.metric_group}/"
+else:
+    STATISTIC_ROOT_PATH = f"{OUTPUT_ROOT_PATH}/experiments/shared_res/distribution_metrics/"
 # plot path
-PLOT_DIR = f"{STATISTIC_ROOT_PATH}/plot/"
+PLOT_DIR = f"{OUTPUT_ROOT_PATH}/plot_analyze/shared_res/distribution_metrics/"
 # MI evaluation path
-MI_DIR = f"{OUTPUT_ROOT_PATH}/mi_eval/"
+MI_DIR = f"{OUTPUT_ROOT_PATH}/plot_analyze/shared_res/mia_eval/"
 
 ############################################## train set ##############################################
 # create dataset config
 dataset_config_1 = {
     "dataset": attack_args.used_datasets[0],
-    "load_path": f"{attack_args.local_dataset_path}/{attack_args.used_datasets[0]}/data/{attack_args.splits[0]}",
+    "load_path": f"{attack_args.local_dataset_path if attack_args.used_datasets[0] in ORIGINAL_DATASETS else METADATA_ROOT_PATH}/{attack_args.used_datasets[0]}/data/{attack_args.splits[0]}",
     "load_num": attack_args.dataset_total_num,
     "split": attack_args.splits[0],
 }
 
 # create paths
 # output path
-TRAIN_OUTPUT_DIR = f"{OUTPUT_ROOT_PATH}/output/{dataset_config_1['dataset']}/{attack_args.model_name}/"
+TRAIN_OUTPUT_DIR = f"{OUTPUT_ROOT_PATH}/experiments/shared_res/mia_scores/{dataset_config_1['dataset']}/{attack_args.model_name}/"
 # statistic path
 TRAIN_STATISTIC_DIR = f"{STATISTIC_ROOT_PATH}/{dataset_config_1['dataset']}/{attack_args.model_name}/"
 
@@ -188,23 +239,25 @@ TRAIN_STATISTIC_DIR = f"{STATISTIC_ROOT_PATH}/{dataset_config_1['dataset']}/{att
 # create dataset config
 dataset_config_2 = {
     "dataset": attack_args.used_datasets[1],
-    "load_path": f"{attack_args.local_dataset_path}/{attack_args.used_datasets[1]}/data/{attack_args.splits[1]}",
+    "load_path": f"{attack_args.local_dataset_path if attack_args.used_datasets[1] in ORIGINAL_DATASETS else METADATA_ROOT_PATH}/{attack_args.used_datasets[1]}/data/{attack_args.splits[1]}",
     "load_num": attack_args.dataset_total_num,
     "split": attack_args.splits[1],
 }
 
 # create paths
 # output path
-HOLD_OUT_OUTPUT_DIR = f"{OUTPUT_ROOT_PATH}/output/{dataset_config_2['dataset']}/{attack_args.model_name}/"
+HOLD_OUT_OUTPUT_DIR = f"{OUTPUT_ROOT_PATH}/experiments/shared_res/mia_scores/{dataset_config_2['dataset']}/{attack_args.model_name}/"
 # statistic path
 HOLD_OUT_STATISTIC_DIR = f"{STATISTIC_ROOT_PATH}/{dataset_config_2['dataset']}/{attack_args.model_name}/"
 
 
 ##################################################### save arguments configuration #####################################
 # save arguments configuration
-os.makedirs(OUTPUT_ROOT_PATH, exist_ok=True)
+entry_name = os.path.splitext(os.path.basename(sys.argv[0]))[0]
+config_dir = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "configs", entry_name, attack_args.experiment)
+os.makedirs(config_dir, exist_ok=True)
 with open(
-        f"{OUTPUT_ROOT_PATH}/{attack_args.used_datasets[0]}_{attack_args.used_datasets[1]}_{attack_args.model_name}_args_config.json",
+        f"{config_dir}/{attack_args.used_datasets[0]}_{attack_args.used_datasets[1]}_{attack_args.model_name}_args_config.json",
         "w",
         encoding="utf-8") as f:
     f.write(

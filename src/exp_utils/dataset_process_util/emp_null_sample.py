@@ -13,8 +13,8 @@ from tqdm import tqdm
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans
 import clip
-from transformers import CLIPTokenizer
-from exp_utils.config_util.attack_config import attack_args, HOLD_OUT_OUTPUT_DIR
+from transformers import AutoTokenizer
+from exp_utils.config_util.attack_config import attack_args, HOLD_OUT_OUTPUT_DIR, OUTPUT_ROOT_PATH, METADATA_ROOT_PATH
 from exp_utils.load_util.load_data import create_dataset_dataloader
 
 
@@ -23,7 +23,7 @@ def load_exclude_indices():
     
     hold_out_names = ["D_hold_out_1", "D_hold_out_2"]
     for ds_name in hold_out_names:
-        meta_file = os.path.join(attack_args.local_dataset_path, ds_name, "metadata", f"meta_{ds_name}.json")
+        meta_file = os.path.join(METADATA_ROOT_PATH, ds_name, "metadata", f"meta_{ds_name}.json")
         if os.path.exists(meta_file):
             with open(meta_file, 'r', encoding='utf-8') as f:
                 metadata_list = json.load(f)
@@ -39,10 +39,13 @@ def load_exclude_indices():
 
 TARGET_TOTAL_SAMPLES = 1000
 LOAD_NUM = 3000
-NUM_PAIRS = 500
+NUM_PAIRS = attack_args.num_pairs
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-OUTPUT_ROOT = os.path.join(attack_args.local_dataset_path, "D_base")
+if attack_args.experiment == "rq2_rq5":
+    OUTPUT_ROOT = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "RQ2_RQ5_calibration_pool", "datasets", "D_base")
+else:
+    OUTPUT_ROOT = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "datasets", "D_base")
 
 
 
@@ -253,8 +256,8 @@ def save_metadata_only(df, output_file):
 
 
 if __name__ == "__main__":
-    tokenizer = CLIPTokenizer.from_pretrained(
-        os.path.join(attack_args.base_model_id, "tokenizer"))
+    tokenizer = AutoTokenizer.from_pretrained(
+        os.path.join(attack_args.base_model_id, "tokenizer"), use_fast=False)
 
     print("="*60)
     print("Loading exclude indices from D_hold_out_1 and D_hold_out_2...")

@@ -266,9 +266,9 @@ def is_sus_hold_pair(ds1, ds2):
 
 if __name__ == "__main__":
     # parameters
-    SPLIT_TIMES = 100  # Number of repeated tests
+    SPLIT_TIMES = attack_args.split_times  # Number of repeated tests
     SPLIT_DS_LEN = attack_args.dataset_total_num // 2
-    K_BASE = 400  # Total pairs to process for base12
+    K_BASE = attack_args.k_base  # Total pairs to process for base12
     
     # get dataset pair from attack_args
     dataset1_name = attack_args.used_datasets[0]
@@ -277,9 +277,13 @@ if __name__ == "__main__":
     # check if this is a base12 pair
     is_base12_pair = {dataset1_name, dataset2_name} == {"D_base_1", "D_base_2"}
     
-    MODEL_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "model")
+    if attack_args.experiment == "rq2_rq5":
+        run_dir = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "RQ2_RQ5_calibration_pool", "intermediate", attack_args.model_name)
+    else:
+        run_dir = os.path.join(OUTPUT_ROOT_PATH, "experiments", "RQ3_calibration_performance", attack_args.model_name)
+    MODEL_OUTPUT_DIR = os.path.join(run_dir, "model")
     os.makedirs(MODEL_OUTPUT_DIR, exist_ok=True)
-    TTest_OUTPUT_DIR = os.path.join(OUTPUT_ROOT_PATH, "ttest")
+    TTest_OUTPUT_DIR = os.path.join(run_dir, "ttest")
     os.makedirs(TTest_OUTPUT_DIR, exist_ok=True)
     
     # time tracking
@@ -289,6 +293,7 @@ if __name__ == "__main__":
         "dataset2": dataset2_name,
         "start_time": datetime.datetime.now().isoformat(),
         "pairs": {},
+        "cached_pairs": [],
         "total_time_seconds": 0
     }
     
@@ -321,12 +326,13 @@ if __name__ == "__main__":
                 )
                 all_pair_results.extend(pair_results)
                 
+                if pair_elapsed == 0:
+                    time_stats["cached_pairs"].append(str(pair_idx + 1))
                 # Save pair time
                 time_stats["pairs"][str(pair_idx + 1)] = pair_elapsed
                 time_stats["total_time_seconds"] += pair_elapsed
             except FileNotFoundError as e:
-                print(f"\nError: Pair {pair_idx + 1} not found, stopping.")
-                break
+                raise
     else:
         # process single pair for sus + hold-out dataset or hold + hold dataset
         try:
@@ -350,11 +356,13 @@ if __name__ == "__main__":
             )
             all_pair_results.extend(pair_results)
             
+            if pair_elapsed == 0:
+                time_stats["cached_pairs"].append(str(pair_idx))
             # save pair time
             time_stats["pairs"][str(pair_idx)] = pair_elapsed
             time_stats["total_time_seconds"] += pair_elapsed
         except FileNotFoundError as e:
-            print(f"\nError: {e}")
+            raise
     
     # calculate overall elapsed time
     overall_elapsed = time.time() - overall_start_time
@@ -366,6 +374,10 @@ if __name__ == "__main__":
     total_minutes, total_seconds = divmod(total_rem, 60)
     time_stats["total_time_formatted"] = f"{int(total_hours)}h {int(total_minutes)}m {total_seconds:.2f}s"
     
+    measured_tests = [r['test_elapsed_seconds'] for r in all_pair_results if 'test_elapsed_seconds' in r]
+    if measured_tests:
+        time_stats["mean_test_seconds"] = float(np.mean(measured_tests))
+
     # save time stats
     time_stats_file = os.path.join(TTest_OUTPUT_DIR, f"time_stats_{dataset1_name}_{dataset2_name}.json")
     with open(time_stats_file, "w", encoding='utf-8') as f:
