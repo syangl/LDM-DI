@@ -274,6 +274,11 @@ def plot_grid(results_root, output_root, case, verify_saved=False):
     filename = 'fig_heatmap_3models_combined.pdf' if case == 'rq2' else 'fig_rq5_heatmap_3models_combined.pdf'
     fig.savefig(output_dir / filename, dpi=300, bbox_inches='tight')
     fig.savefig(output_dir / filename.replace('.pdf', '.png'), dpi=150, bbox_inches='tight')
+    if case == 'rq2':
+        for ax in axes:
+            ax.set_ylim(0.04, 0.15)
+        fig.savefig(output_dir / filename.replace('.pdf', '_full.pdf'), dpi=300, bbox_inches='tight')
+        fig.savefig(output_dir / filename.replace('.pdf', '_full.png'), dpi=150, bbox_inches='tight')
     plt.close(fig)
 
 if __name__ == '__main__':

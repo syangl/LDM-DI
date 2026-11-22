@@ -12,7 +12,6 @@ def main():
     args = attack_args
     output = Path(OUTPUT_ROOT_PATH)
     output.mkdir(parents=True, exist_ok=True)
-    os.environ.setdefault('MPLCONFIGDIR', str(output / 'mpl_cache'))
     os.environ.setdefault('MPLBACKEND', 'Agg')
     from run_mia_ablation import MIA_COLUMNS
 
