@@ -4,7 +4,6 @@ Compute RQ2/RQ5 calibration grids and draw their contour plots.
 import os
 import sys
 import json
-import shutil
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -75,11 +74,32 @@ def calc_semantic_shift(emb_a, emb_b):
         acc = ((model(X_te) > 0.5).float() == y_te).float().mean().item()
     return 2 * abs(2 * acc - 1)
 
-def calc_texture_shift(lap_a, lap_b):
-    bins = np.linspace(min(lap_a.min(), lap_b.min()), max(lap_a.max(), lap_b.max()), 50)
-    hist1, _ = np.histogram(lap_a, bins=bins, density=True)
-    hist2, _ = np.histogram(lap_b, bins=bins, density=True)
-    return 1.0 - np.sum(np.minimum(hist1, hist2)) * (bins[1] - bins[0])
+def calc_texture_shift(lap_a, lap_b, fft_a, fft_b):
+    shifts = []
+    for a, b in [(lap_a, lap_b), (fft_a, fft_b)]:
+        bins = np.linspace(min(a.min(), b.min()), max(a.max(), b.max()), 50)
+        hist1, _ = np.histogram(a, bins=bins, density=True)
+        hist2, _ = np.histogram(b, bins=bins, density=True)
+        shifts.append(1.0 - np.sum(np.minimum(hist1, hist2)) * (bins[1] - bins[0]))
+    return max(shifts)
+
+def update_texture_shift(pool_df, prepared_df, base_dataset_path):
+    prepared_df = prepared_df.copy()
+    prepared_df['original_index'] = prepared_df['original_index'].astype(int)
+    features = prepared_df.drop_duplicates(['source_dataset', 'original_index']).set_index(['source_dataset', 'original_index'])
+    shifts = []
+    for pair_id in tqdm(pool_df['pair_id'], desc='Recomputing textural shifts'):
+        groups = []
+        for side in [1, 2]:
+            with (base_dataset_path / f'pair_{pair_id}_base{side}.json').open() as f:
+                metadata = json.load(f)
+            keys = [(item['source_dataset'], int(item['original_index'])) for item in metadata]
+            groups.append(features.loc[keys])
+        shifts.append(calc_texture_shift(groups[0]['laplacian'].to_numpy(), groups[1]['laplacian'].to_numpy(),
+                                         groups[0]['fft'].to_numpy(), groups[1]['fft'].to_numpy()))
+    pool_df = pool_df.copy()
+    pool_df['delta_txt'] = shifts
+    return pool_df
 
 def process_real_pool(prepared_df, base_dataset_path, ttest_dir, case):
     records = []
@@ -106,20 +126,22 @@ def process_real_pool(prepared_df, base_dataset_path, ttest_dir, case):
         with open(os.path.join(base_dataset_path, f"pair_{pair_idx}_base2.json"), 'r') as m2:
             meta2 = json.load(m2)
             
-        emb1, lap1 = [], []
+        emb1, lap1, fft1 = [], [], []
         for item in meta1:
             match = features.loc[(item['source_dataset'], int(item['original_index']))]
             emb1.append(match['embedding'])
             lap1.append(match['laplacian'])
+            fft1.append(match['fft'])
             
-        emb2, lap2 = [], []
+        emb2, lap2, fft2 = [], [], []
         for item in meta2:
             match = features.loc[(item['source_dataset'], int(item['original_index']))]
             emb2.append(match['embedding'])
             lap2.append(match['laplacian'])
+            fft2.append(match['fft'])
             
         delta_sem = calc_semantic_shift(np.array(emb1), np.array(emb2))
-        delta_txt = calc_texture_shift(np.array(lap1), np.array(lap2))
+        delta_txt = calc_texture_shift(np.array(lap1), np.array(lap2), np.array(fft1), np.array(fft2))
         
         records.append({'pair_id': pair_idx, 'delta_sem': delta_sem, 'delta_txt': delta_txt, 'wt_null': wt_null})
         
@@ -134,13 +156,11 @@ def plot_clean_adaptive_basin(grid_df, ax, fig, title="", is_first_col=False, is
     Z_loss = pivot_loss.values
     Z_k = pivot_k.values
     
-    dynamic_vmax = np.percentile(Z_loss, 95)
-    Z_clipped = np.clip(Z_loss, np.nanmin(Z_loss), dynamic_vmax)
-    
     cmap = plt.cm.Greens_r
 
     fixed_levels = np.linspace(0.0, 1.0, 51)
-    c = ax.contourf(X, Y, Z_clipped, levels=fixed_levels, cmap=cmap, extend='max')
+    ax.set_facecolor('white')
+    c = ax.contourf(X, Y, np.ma.masked_invalid(Z_loss), levels=fixed_levels, cmap=cmap, extend='max')
 
     cs_k = ax.contour(X, Y, Z_k, levels=K_LEVELS, colors=K_COLORS, linewidths=4, linestyles=K_LINESTYLES, alpha=0.9)
 
@@ -175,8 +195,7 @@ def compute_grid(pool_df, target_wts, member_wts, u_sem_grid, u_txt_grid, alpha=
             valid_pairs = pool_df[(pool_df['delta_sem'] <= u_sem) & (pool_df['delta_txt'] <= u_txt)]
             k_base = len(valid_pairs)
             if k_base == 0:
-                # Mark empty calibration pools with K=0 and unit loss.
-                results.append((u_sem, u_txt, 0, 1.0, 0.0, 1.0))
+                results.append((u_sem, u_txt, 0, np.nan, np.nan, np.nan))
                 continue
             tau_alpha = np.percentile(valid_pairs['wt_null'].values, 100 * (1 - alpha))
             fpr = np.sum(target_wts > tau_alpha) / len(target_wts)
@@ -186,7 +205,9 @@ def compute_grid(pool_df, target_wts, member_wts, u_sem_grid, u_txt_grid, alpha=
     return pd.DataFrame(results, columns=['u_sem', 'u_txt', 'k_base', 'fpr', 'tpr', 'du_loss'])
 
 def plot_grid(results_root, output_root, case, verify_saved=False):
-    """Build or reuse measured pools, compute a grid, and draw its contour figure."""
+    """
+    Build or reuse measured pools, compute a grid, and draw its contour figure.
+    """
     from pathlib import Path
     root = Path(results_root)
     section = 'RQ2_hyperparameters' if case == 'rq2' else 'RQ5_distribution_bound_ablation'
@@ -204,23 +225,21 @@ def plot_grid(results_root, output_root, case, verify_saved=False):
         ttest_dir = shared / 'intermediate' / model / 'ttest'
         if pool_path.exists():
             pool_df = pd.read_csv(pool_path)
-            if pool_path.resolve() != output_pool.resolve():
-                if output_pool.exists():
-                    raise FileExistsError(output_pool)
-                pool_output_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(pool_path, output_pool)
         else:
             if verify_saved:
                 raise FileNotFoundError(pool_path)
             prepared = pd.read_pickle(shared / 'intermediate/prepared_df.pkl')
             pool_df = process_real_pool(prepared, shared / 'datasets/D_base', ttest_dir, case)
-            pool_output_dir.mkdir(parents=True, exist_ok=True)
-            pool_df.to_csv(output_pool, index=False, mode='x')
         if case == 'rq2':
             pool_df = pool_df[pool_df['pair_id'].between(1, 500)]
         else:
             pool_df = pool_df[pool_df['pair_id'].between(501, 1500)]
         pool_df = pool_df.sample(n=500, random_state=0)
+        if not verify_saved and pool_path.exists():
+            prepared = pd.read_pickle(shared / 'intermediate/prepared_df.pkl')
+            pool_df = update_texture_shift(pool_df, prepared, shared / 'datasets/D_base')
+        pool_output_dir.mkdir(parents=True, exist_ok=True)
+        pool_df.to_csv(output_pool, index=False, mode='x')
         with (ttest_dir / 'pair_holdhold/ttest_pair_holdhold_results.json').open() as f:
             target_wts = np.array([r['t_statistic'] for r in json.load(f)])
         with (ttest_dir / 'pair_sushold/ttest_pair_sushold_results.json').open() as f:
@@ -232,21 +251,29 @@ def plot_grid(results_root, output_root, case, verify_saved=False):
             u_txt_grid = sorted(saved.u_txt.unique())
         else:
             u_sem_grid = np.linspace(pool_df.delta_sem.min(), pool_df.delta_sem.max(), 30)
-            u_txt_grid = np.linspace(pool_df.delta_txt.min(), pool_df.delta_txt.max(), 30)
+            u_txt_grid = np.linspace(0.04, 0.15, 30) if case == 'rq2' else np.linspace(pool_df.delta_txt.min(), pool_df.delta_txt.max(), 30)
         grid = compute_grid(pool_df, target_wts, member_wts, u_sem_grid, u_txt_grid)
-        if verify_saved and not np.allclose(grid.to_numpy(), saved.to_numpy(), rtol=1e-12, atol=1e-12):
-            raise ValueError(f'Recomputed grid differs from saved {case}: {model}')
+        if verify_saved:
+            coordinates_match = np.allclose(grid[['u_sem', 'u_txt', 'k_base']], saved[['u_sem', 'u_txt', 'k_base']], rtol=1e-12, atol=1e-12)
+            valid = grid['k_base'] > 0
+            metrics_match = np.allclose(grid.loc[valid, ['fpr', 'tpr', 'du_loss']], saved.loc[valid, ['fpr', 'tpr', 'du_loss']], rtol=1e-12, atol=1e-12)
+            if not coordinates_match or not metrics_match:
+                raise ValueError(f'Recomputed grid differs from saved {case}: {model}')
         grid.to_csv(output_dir / f'grid_search_{model}.csv', index=False)
         plot_clean_adaptive_basin(grid, axes[i], fig, f'({chr(97+i)}) {title}', i == 0, i == 2)
+        if case == 'rq2':
+            axes[i].set_ylim(0.10, 0.15)
+            axes[i].tick_params(axis='x', pad=12)
     handles = [mlines.Line2D([], [], linestyle='none', label=r'$K_{\mathrm{base}}$')]
     handles += [mlines.Line2D([], [], color=c, linewidth=4, linestyle=ls, label=f'${k}$')
                 for c, k, ls in zip(K_COLORS, K_LEVELS, K_LINESTYLES)]
     fig.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, 0.89),
-               ncol=len(K_LEVELS)+1, fontsize=CONTOUR_LABEL_FONT_SIZE,
+               ncol=len(handles), fontsize=CONTOUR_LABEL_FONT_SIZE,
                frameon=False, handletextpad=0.2)
     fig.subplots_adjust(top=0.88, bottom=0.24, left=0.08, right=0.92, wspace=0.25)
     filename = 'fig_heatmap_3models_combined.pdf' if case == 'rq2' else 'fig_rq5_heatmap_3models_combined.pdf'
     fig.savefig(output_dir / filename, dpi=300, bbox_inches='tight')
+    fig.savefig(output_dir / filename.replace('.pdf', '.png'), dpi=150, bbox_inches='tight')
     plt.close(fig)
 
 if __name__ == '__main__':

@@ -1,7 +1,5 @@
-"""Generate the RQ1, RQ2, RQ3, RQ5 and RQ6 figures and tables.
-
---results contains the experiments and plot_analyze directories.
---output receives the figures, tables, and supporting data.
+"""
+Generate RQ1, RQ2, RQ3, RQ5 and RQ6 figures and tables.
 """
 import argparse
 import json
@@ -18,16 +16,13 @@ def main(results, output):
     analysis.mkdir(parents=True, exist_ok=False)
     scripts = Path(__file__).resolve().parent
     start = time.perf_counter()
-    # Run each figure in a separate process to isolate its font and style settings.
     for script, section in [('rq1_plot_vulnerability.py', 'RQ1_standard_di_vulnerability'),
                             ('rq3_plot_calibration.py', 'RQ3_calibration_performance')]:
         subprocess.run([sys.executable, str(scripts / script), '--results', str(results),
                         '--output', str(analysis / section)], check=True)
-    for case, section in [('rq2', 'RQ2_hyperparameters'),
-                          ('rq5', 'RQ5_distribution_bound_ablation')]:
+    for case, section in [('rq2', 'RQ2_hyperparameters'), ('rq5', 'RQ5_distribution_bound_ablation')]:
         subprocess.run([sys.executable, str(scripts / 'rq2_rq5_hyperparameter_analysis.py'),
-                        '--results', str(results), '--output', str(output),
-                        '--case', case, '--verify-saved'], check=True)
+                        '--results', str(results), '--output', str(output), '--case', case], check=True)
     rq3 = 'RQ3_calibration_performance'
     pd.testing.assert_frame_equal(
         pd.read_csv(analysis / rq3 / 'RQ3_3Models_Results.csv'),
