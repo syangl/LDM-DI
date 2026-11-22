@@ -106,6 +106,7 @@ def create_parser():
     parser.add_argument("--output_root", default=os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../exp_data")), help="Project output root containing experiments and plot_analyze")
     parser.add_argument("--metadata_root", help="Directory containing saved D_base and hold-out metadata")
     parser.add_argument("--feature_root", help="Directory containing saved offline feature dictionaries")
+    parser.add_argument("--main_results", help="Original RQ3 model-result directories used as the full-feature reference")
 
     parser.add_argument("--experiment", choices=["rq1", "rq2_rq5", "rq3"], default="rq3",
                         help="Experiment context for shared feature and calibration outputs")
@@ -115,6 +116,12 @@ def create_parser():
 
     # baseline group
     baseline_group = parser.add_argument_group("Baseline Config")
+    baseline_group.add_argument("--mia_variant", choices=["full", "secmi", "naivelossmi", "piami", "structuralmi", "rediffusemi", "gradient_maskingmi", "multiple_lossmi", "noise_optimmi"],
+                                help="Run one case of the leave-one-MIA-out experiment")
+    baseline_group.add_argument("--models", nargs='+', choices=["stable-diffusion-v1p5", "commoncanvas-s-c", "kandinsky-3"],
+                                help="Models for the complete MIA ablation experiment")
+    baseline_group.add_argument("--workers", type=int, default=4,
+                                help="Parallel CPU jobs for the complete MIA ablation experiment")
     baseline_group.add_argument(
         "--baseline",
         type=str,

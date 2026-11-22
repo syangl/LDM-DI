@@ -9,6 +9,10 @@ import json
 import random
 
 
+def sample_calibration_pairs(pair_names, k_base, seed=0):
+    return random.Random(seed).sample(sorted(pair_names), k_base)
+
+
 def load_t_stats_from_dir(ttest_dir, k_base=None):
     """
     Load t-statistics from a directory, returning both stats and dataset info
@@ -38,10 +42,9 @@ def load_t_stats_from_dir(ttest_dir, k_base=None):
         else:
             other_pair_dirs.append(pair_dir)
     
-    # If k_base is specified, only load first k_base base12 pairs
+    # Sample calibration pairs without replacement.
     if k_base is not None:
-        random.seed(0)
-        base12_pair_dirs = random.sample(base12_pair_dirs, k_base)
+        base12_pair_dirs = sample_calibration_pairs(base12_pair_dirs, k_base)
     
     # Combine base12 and other pairs
     selected_pair_dirs = base12_pair_dirs + other_pair_dirs

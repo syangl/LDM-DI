@@ -128,7 +128,7 @@ def t_test_with_effect(B_sus, B_hold_out):
     return p.item(), neg_log_p.item(), d.item()
 
 
-def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR, SPLIT_TIMES, SPLIT_DS_LEN):
+def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OUTPUT_DIR, TTest_OUTPUT_DIR, SPLIT_TIMES, SPLIT_DS_LEN, feature_columns=None, seed=None):
     """
     Process a single dataset pair for t-test
     """
@@ -155,6 +155,9 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
     
     # load features for this pair
     ds1_feats, ds2_feats = loader.load_dataset_pair_features(dataset1_name, dataset2_name, pair_idx)
+    if feature_columns is not None:
+        ds1_feats = ds1_feats[:, feature_columns]
+        ds2_feats = ds2_feats[:, feature_columns]
     # if dataset_total_num is less than loaded features, randomly sample to the target size
     if attack_args.dataset_total_num < ds1_feats.shape[0]:
         target_size = attack_args.dataset_total_num
@@ -174,6 +177,8 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
     results = []
     
     for test_i in range(SPLIT_TIMES):
+        if seed is not None:
+            torch.manual_seed(seed + test_i)
         preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"pair_{pair_idx}_preds_{test_i}.json")
         
         print(f"\n--- Start Testing Pair {pair_idx} - Test {test_i} ---")
