@@ -54,8 +54,8 @@ def train_model(sus_features, sus_label, hold_out_features, hold_out_label, pair
         torch.nn.Linear(sus_features.shape[1], 1),
         # torch.nn.Sigmoid()
     )
-    save_file = os.path.join(MODEL_OUTPUT_DIR, f"pair_{pair_idx}", f"model_{pair_idx}_{test_i}.pt")
-    if os.path.exists(save_file):
+    save_file = os.path.join(MODEL_OUTPUT_DIR, f"pair_{pair_idx}", f"model_{pair_idx}_{test_i}.pt") if MODEL_OUTPUT_DIR is not None else None
+    if save_file is not None and os.path.exists(save_file):
         print(f"{save_file} already exists, skipping training.")
         model.load_state_dict(torch.load(save_file))
         return model
@@ -87,19 +87,19 @@ def train_model(sus_features, sus_label, hold_out_features, hold_out_label, pair
             tqdm_bar.set_description(f"Epoch {epoch+1}/{epochs}, Loss: {loss.item():.4f}")
             tqdm_bar.update(1)
 
-    plt.figure()
-    plt.title(f"Training Loss for Model {pair_idx}_{test_i}")
-    plt.xlim(0, epochs)
-    plt.xlabel("Epoch")
-    plt.ylabel("Loss")
-    plt.tick_params(axis='both', which='both', direction="in")
-    plt.tight_layout()
-    plt.plot(loss_list)
-    os.makedirs(os.path.dirname(save_file), exist_ok=True)
-    plt.savefig(os.path.join(MODEL_OUTPUT_DIR, f"pair_{pair_idx}", f"training_loss_{pair_idx}_{test_i}.png"))
-    plt.close()
-
-    torch.save(model.state_dict(), save_file)
+    if save_file is not None:
+        plt.figure()
+        plt.title(f"Training Loss for Model {pair_idx}_{test_i}")
+        plt.xlim(0, epochs)
+        plt.xlabel("Epoch")
+        plt.ylabel("Loss")
+        plt.tick_params(axis='both', which='both', direction="in")
+        plt.tight_layout()
+        plt.plot(loss_list)
+        os.makedirs(os.path.dirname(save_file), exist_ok=True)
+        plt.savefig(os.path.join(MODEL_OUTPUT_DIR, f"pair_{pair_idx}", f"training_loss_{pair_idx}_{test_i}.png"))
+        plt.close()
+        torch.save(model.state_dict(), save_file)
     return model
 
 
@@ -132,10 +132,10 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
     """
     Process a single dataset pair for t-test
     """
-    ttest_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"ttest_pair_{pair_idx}_results.json")
+    ttest_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"ttest_pair_{pair_idx}_results.json") if TTest_OUTPUT_DIR is not None else None
     
     # check if results already exist
-    if os.path.exists(ttest_file_path):
+    if ttest_file_path is not None and os.path.exists(ttest_file_path):
         print(f"\n{'='*60}")
         print(f"Results for Pair {pair_idx} already exist: {ttest_file_path}")
         print(f"{'='*60}")
@@ -179,7 +179,6 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
     for test_i in range(SPLIT_TIMES):
         if seed is not None:
             torch.manual_seed(seed + test_i)
-        preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"pair_{pair_idx}_preds_{test_i}.json")
         
         print(f"\n--- Start Testing Pair {pair_idx} - Test {test_i} ---")
         test_start_time = time.time()
@@ -213,14 +212,16 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
         B_sus = preds[label_B == 1].cpu().numpy()
         B_hold_out = preds[label_B == 0].cpu().numpy()
         
-        os.makedirs(os.path.dirname(preds_file_path), exist_ok=True)
-        with open(preds_file_path, "w", encoding='utf-8') as f:
-            json.dump({
-                "B_sus_preds": B_sus.tolist(),
-                "B_hold_out_preds": B_hold_out.tolist(),
-                "B_sus_labels": features_B_tuple[1].cpu().numpy().tolist(),
-                "B_hold_out_labels": features_B_tuple[3].cpu().numpy().tolist()
-            }, f, indent=4)
+        if TTest_OUTPUT_DIR is not None:
+            preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"pair_{pair_idx}_preds_{test_i}.json")
+            os.makedirs(os.path.dirname(preds_file_path), exist_ok=True)
+            with open(preds_file_path, "w", encoding='utf-8') as f:
+                json.dump({
+                    "B_sus_preds": B_sus.tolist(),
+                    "B_hold_out_preds": B_hold_out.tolist(),
+                    "B_sus_labels": features_B_tuple[1].cpu().numpy().tolist(),
+                    "B_hold_out_labels": features_B_tuple[3].cpu().numpy().tolist()
+                }, f, indent=4)
         
         # calculate Welch's t-statistic
         t_statistic = t_test(B_sus, B_hold_out)
@@ -235,10 +236,15 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
             "t_statistic": t_statistic,
             "test_elapsed_seconds": test_elapsed
         })
+        if TTest_OUTPUT_DIR is None:
+            results[-1].update(predictions=np.stack([B_sus, B_hold_out]),
+                               weights=model[0].weight.detach().cpu().numpy()[0].copy(),
+                               bias=model[0].bias.detach().cpu().numpy()[0].copy())
     
     # save all results for this pair
-    with open(ttest_file_path, "w", encoding='utf-8') as f:
-        json.dump(results, f, indent=4)
+    if ttest_file_path is not None:
+        with open(ttest_file_path, "w", encoding='utf-8') as f:
+            json.dump(results, f, indent=4)
     
     # calculate pair elapsed time
     pair_elapsed = time.time() - pair_start_time
@@ -327,7 +333,8 @@ if __name__ == "__main__":
                     MODEL_OUTPUT_DIR, 
                     TTest_OUTPUT_DIR,
                     1, # ensure only K_BASE control the number of tests
-                    SPLIT_DS_LEN
+                    SPLIT_DS_LEN,
+                    seed=attack_args.global_seed
                 )
                 all_pair_results.extend(pair_results)
                 
@@ -357,7 +364,8 @@ if __name__ == "__main__":
                 MODEL_OUTPUT_DIR, 
                 TTest_OUTPUT_DIR,
                 SPLIT_TIMES, 
-                SPLIT_DS_LEN
+                SPLIT_DS_LEN,
+                seed=attack_args.global_seed
             )
             all_pair_results.extend(pair_results)
             

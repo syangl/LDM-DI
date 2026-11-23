@@ -102,6 +102,8 @@ def test_distribution_similarity(features1, features2):
     return result, classifier
 
 if __name__ == "__main__":
+    torch.manual_seed(attack_args.global_seed)
+    np.random.seed(attack_args.global_seed)
     # create_dataset_dataloader needs to load the tokenizer, although we do not use the tokenizer here
     tokenizer = AutoTokenizer.from_pretrained(os.path.join(attack_args.base_model_id, "tokenizer"), use_fast=False)
 

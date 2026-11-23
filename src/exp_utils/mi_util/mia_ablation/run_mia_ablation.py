@@ -1,13 +1,16 @@
 """
 Run full-feature and leave-one-MIA-out DI.
 """
-import csv
 import json
 from pathlib import Path
+import sys
 import time
 
 import numpy as np
 import torch
+
+if __name__ == '__main__':
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from exp_utils.config_util.attack_config import attack_args, OUTPUT_ROOT_PATH
 from exp_utils.dataset_process_util.meta_feature_manager import create_loader
@@ -64,29 +67,23 @@ def main():
         'candidate_pairs': args.num_pairs, 'calibration_pair_ids': selected,
         'global_seed': args.global_seed, 'main_results': str(main_results),
         'alpha': 0.001, 'quantile_method': 'numpy.percentile, linear',
-        'mia_columns': MIA_COLUMNS, 'variants': variants, 'epochs': 1000, 'optimizer': 'Adam, lr=0.01',
+        'mia_columns': MIA_COLUMNS, 'epochs': 1000, 'optimizer': 'Adam, lr=0.01',
         'torch_threads': 1, 'torch_version': torch.__version__, 'numpy_version': np.__version__,
         'scope': 'Original full-feature main results with retrained, recalibrated leave-one-out variants. Original calibration pairs and evaluation splits are retained.',
+        'record_order': 'calibration_pair_ids, holdhold splits, sushold splits',
+        'prediction_groups': ['sus', 'hold_out'],
     }
-    protocol_file = run_dir / 'protocol.json'
-    if protocol_file.exists():
-        if json.loads(protocol_file.read_text()) != protocol:
-            raise ValueError(f'Existing ablation inputs differ; use a new output_root: {run_dir}')
-    else:
-        if any(run_dir.iterdir()):
-            raise FileExistsError(f'Existing outputs have no input protocol: {run_dir}')
-        protocol_file.write_text(json.dumps(protocol, indent=2) + '\n')
-    if all((run_dir / name / 'summary.json').exists() for name in variants):
-        print(f'Requested ablation cases are already complete: {run_dir}', flush=True)
-        return
-    summary = []
     for removed in variants:
+        output = run_dir / f'{removed}.npz'
+        if output.exists():
+            with np.load(output, allow_pickle=False) as saved:
+                if json.loads(str(saved['metadata']))['protocol'] != protocol:
+                    raise ValueError(f'Existing ablation inputs differ; use a new output_root: {output}')
+            print(f'Ablation case is already complete: {output}', flush=True)
+            continue
         start = time.perf_counter()
         columns = [i for i in range(17) if removed == 'full' or i not in MIA_COLUMNS[removed]]
-        output = run_dir / removed
-        model_dir = output / 'model'
-        model_dir.mkdir(parents=True, exist_ok=True)
-        result_dir = output / 'ttest'
+        all_records = []
         reference_dir = main_results / args.model_name / 'ttest'
         if removed == 'full':
             calibration, evaluation = load_main_statistics(reference_dir, selected, target)
@@ -94,10 +91,11 @@ def main():
             calibration = []
             for number, pair in enumerate(selected, 1):
                 records, _ = process_single_pair(
-                    loader, pair, 'D_base_1', 'D_base_2', str(model_dir), str(result_dir),
+                    loader, pair, 'D_base_1', 'D_base_2', None, None,
                     1, args.dataset_total_num // 2, feature_columns=columns, seed=args.global_seed)
                 assert len(records) == 1
                 calibration.append(records[0]['t_statistic'])
+                all_records.extend(records)
                 if number % 50 == 0:
                     print(f'{removed}: calibration {number}/{args.k_base}', flush=True)
 
@@ -107,10 +105,11 @@ def main():
                 ('sushold', (target, 'D_hold_out_' + target)),
             ]:
                 records, _ = process_single_pair(
-                    loader, pair, *names, str(model_dir), str(result_dir), args.split_times,
+                    loader, pair, *names, None, None, args.split_times,
                     args.dataset_total_num // 2, feature_columns=columns, seed=args.global_seed)
                 assert len(records) == args.split_times
                 evaluation[pair] = np.array([record['t_statistic'] for record in records])
+                all_records.extend(records)
         if any(len(values) != args.split_times for values in evaluation.values()):
             raise ValueError(f'Evaluation split count differs from the main experiment: {removed}')
         if not all(np.isfinite(values).all() for values in [calibration, *evaluation.values()]):
@@ -127,12 +126,16 @@ def main():
             'true_positives': int(true_positives), 'tpr_trials': args.split_times, 'tpr': float(tpr),
             'elapsed_seconds': time.perf_counter() - start,
         }
-        (output / 'summary.json').write_text(json.dumps(row, indent=2) + '\n')
-        summary.append(row)
-        with (run_dir / 'summary.csv').open('w', newline='') as f:
-            writer = csv.DictWriter(f, fieldnames=[key for key in row if key != 'kept_columns'])
-            writer.writeheader()
-            writer.writerows({key: value for key, value in result.items() if key != 'kept_columns'} for result in summary)
+        arrays = {'calibration': np.asarray(calibration), **evaluation,
+                  'metadata': np.array(json.dumps({'protocol': protocol, 'summary': row}))}
+        if all_records:
+            arrays.update(predictions=np.stack([r['predictions'] for r in all_records]),
+                          weights=np.stack([r['weights'] for r in all_records]),
+                          bias=np.array([r['bias'] for r in all_records]),
+                          fit_seconds=np.array([r['test_elapsed_seconds'] for r in all_records]))
+        pending = output.with_suffix('.partial.npz')
+        np.savez_compressed(pending, **arrays)
+        pending.replace(output)
         print(json.dumps(row), flush=True)
 
 

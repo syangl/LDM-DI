@@ -286,6 +286,7 @@ def process_single_pair(loader, pair_idx, dataset1_name, dataset2_name, MODEL_OU
     results = []
     
     for test_i in tqdm(range(SPLIT_TIMES), desc="Running t-test for size..."):
+        torch.manual_seed(attack_args.global_seed + test_i)
         test_start = time.perf_counter()
         preds_file_path = os.path.join(TTest_OUTPUT_DIR, f"pair_{pair_idx}", f"preds_{test_i}.json")
         

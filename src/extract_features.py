@@ -258,6 +258,8 @@ def extract_features_for_dataset(dataset_config, pipe, feat_dict_path):
     return features_full, features_dict
 
 if __name__ == "__main__":
+    torch.manual_seed(attack_args.global_seed)
+    np.random.seed(attack_args.global_seed)
     FEATURE_OUTPUT_DIR = os.path.join(FEATURE_ROOT_PATH, "offline_features")
     os.makedirs(FEATURE_OUTPUT_DIR, exist_ok=True)
     

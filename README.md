@@ -16,6 +16,10 @@ The rapid adoption of pre-trained diffusion models has heightened concerns that 
 
 Runtime environment requirements are listed in `src/requirements.txt`. Our experimental setup:
 
+```bash
+python -m pip install -r src/requirements.txt --extra-index-url https://download.pytorch.org/whl/cu128
+```
+
 | Component | Specification |
 |-----------|---------------|
 | GPU | NVIDIA RTX PRO 6000 |
@@ -34,6 +38,7 @@ All experimental parameters are defined in `src/exp_utils/config_util/attack_con
 ```
 LDM-DI/
 ├── src/
+│   ├── run_experiments.sh                      # Full workflow or selected stage
 │   ├── main_ttest.py                           # Main DI framework
 │   ├── baseline_ttest.py                       # Baseline DI paradigm
 │   ├── calculate_threshold_fpr.py              # FPR threshold calibration
@@ -45,6 +50,7 @@ LDM-DI/
 │       │   ├── attack_config.py
 │       │   └── random_provider.py
 │       ├── dataset_process_util/
+│       │   ├── prepare_experiment_data.py      # Source image manifest
 │       │   ├── clip_knn.py                     # CLIP-KNN distribution alignment
 │       │   ├── seman_bound.py                  # Semantic similarity bound
 │       │   ├── texture_bound.py                # Textural complexity bound
@@ -55,6 +61,7 @@ LDM-DI/
 │       │   └── img_preprocess.py
 │       ├── mi_util/
 │       │   ├── baseline_mi_main.py             # Individual MIA runner
+│       │   ├── mia_ablation/                   # Run and export MIA ablation
 │       │   ├── piami_src/
 │       │   ├── noise_optimmi_src/
 │       │   ├── naivelossmi_src/
@@ -85,48 +92,15 @@ LDM-DI/
 
 ## 🧪 Experimental Workflow
 
-### 1. Prepare Datasets
-
-Run scripts in `dataset/` to obtain full training datasets and hold-out datasets. Use `dataset/clean_bad_images.py` to filter out corrupted images.
-
-### 2. Mitigate Distribution Shift (CLIP-KNN & SCNS)
-
-After obtaining the datasets, run `src/exp_utils/dataset_process_util/clip_knn.py` to mitigate distribution shift and generate a pair of $D_{\text{sus}}$ and $D_{\text{hold}}$ with similar distributions.
-
-**Evaluate distribution similarity:**
-
-- Semantic similarity: `src/exp_utils/dataset_process_util/seman_bound.py`
-- Textural complexity: `src/exp_utils/dataset_process_util/texture_bound.py`
-
-**Generate hold-out subset pairs:**
+Use the scripts in `dataset/` to obtain the source images and captions, and use `dataset/clean_bad_images.py` to filter corrupted images. Download the model weights listed below and activate the Python environment above. From the repository root, run the full workflow into a fresh output directory or select an individual stage:
 
 ```bash
-python src/exp_utils/dataset_process_util/emp_null_sample.py
+bash src/run_experiments.sh all /path/to/datasets /path/to/models /path/to/new-output
+bash src/run_experiments.sh rq1 /path/to/datasets /path/to/models /path/to/existing-output
+bash src/run_experiments.sh --help
 ```
 
-### 3. Run Dataset Inference
-
-Execute the calibrated dataset inference:
-
-```bash
-python src/main_ttest.py
-```
-
-Calculate the dynamic calibration threshold and hypothesis testing:
-
-```bash
-python src/calculate_threshold_fpr.py
-```
-
-**Baseline Comparison:** `src/baseline_ttest.py` implements the standard DI paradigm, and `src/baseline_calculate_fpr.py` evaluates FPR and TPR.
-
-### 4. (Optional) Run Individual MIA
-
-For independent Membership Inference Attacks used to extract memorization features:
-
-```bash
-python src/exp_utils/mi_util/baseline_mi_main.py
-```
+For a single RQ, run `prepare` and `features` first and keep using the same output directory. The script help lists the input layout, additional prerequisites, and commands for similarity measurements, MIA ablation, and plotting.
 
 ---
 

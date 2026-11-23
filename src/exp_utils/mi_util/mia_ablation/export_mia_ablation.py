@@ -13,48 +13,46 @@ from scipy.stats import norm
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--results', type=Path, required=True,
-                        help='Matrix root containing model/case/experiments/MIA_ablation runs')
+                        help='MIA_ablation directory containing model/variant.npz archives')
     parser.add_argument('--output', type=Path, required=True)
     args = parser.parse_args()
     rows = {}
     expected = {}
-    for path in sorted(args.results.glob('*/*/experiments/MIA_ablation/*/protocol.json')):
-        protocol = json.loads(path.read_text())
+    for path in sorted(args.results.glob('*/*.npz')):
+        with np.load(path, allow_pickle=False) as saved:
+            metadata = json.loads(str(saved['metadata']))
+            calibration = saved['calibration']
+            evaluation = {pair: saved[pair] for pair in ('holdhold', 'sushold')}
+        protocol = metadata['protocol']
+        summary = metadata['summary']
         model = protocol['model']
         expected[model] = {'full', *protocol['mia_columns']}
         standard_threshold = float(norm.ppf(1 - protocol['alpha']))
-        for case in protocol['variants']:
-            key = model, case
-            if key in rows:
-                raise ValueError(f'Duplicate model and ablation case: {key}')
-            run = path.parent / case
-            summary = json.loads((run / 'summary.json').read_text())
-            evaluation = {}
-            for pair in ('holdhold', 'sushold'):
-                if summary['reference_ttest_dir'] is not None:
-                    target = 'commoncatalog_cc_by_sa' if model == 'commoncanvas-s-c' else 'laion_aesthetics_v2_5p0'
-                    filename = 'ttest_pair_D_hold_out_1_D_hold_out_2_results.json' if pair == 'holdhold' else f'ttest_pair_{target}_D_hold_out_{target}_results.json'
-                    source = Path(summary['reference_ttest_dir']) / filename
-                else:
-                    source = run / 'ttest' / f'pair_{pair}' / f'ttest_pair_{pair}_results.json'
-                records = json.loads(source.read_text())
-                evaluation[pair] = np.array([record['t_statistic'] for record in records])
-                if len(records) != protocol['evaluation_splits'] or not np.isfinite(evaluation[pair]).all():
-                    raise ValueError(f'Invalid evaluation statistics: {run}/{pair}')
-            false_positives = int(np.sum(evaluation['holdhold'] > summary['threshold']))
-            true_positives = int(np.sum(evaluation['sushold'] > summary['threshold']))
-            assert false_positives == summary['false_positives']
-            assert true_positives == summary['true_positives']
-            rows[key] = {
-                'model': model, 'removed_mia': case,
-                'mia_methods': summary['mia_methods'], 'feature_columns': summary['feature_columns'],
-                'calibration_pairs': summary['calibration_pairs'],
-                'standard_threshold': standard_threshold, 'calibrated_threshold': summary['threshold'],
-                'standard_false_positives': int(np.sum(evaluation['holdhold'] > standard_threshold)),
-                'calibrated_false_positives': false_positives, 'fpr_trials': len(evaluation['holdhold']),
-                'standard_true_positives': int(np.sum(evaluation['sushold'] > standard_threshold)),
-                'calibrated_true_positives': true_positives, 'tpr_trials': len(evaluation['sushold']),
-            }
+        case = summary['removed_mia']
+        key = model, case
+        if key in rows:
+            raise ValueError(f'Duplicate model and ablation case: {key}')
+        for pair, values in evaluation.items():
+            if len(values) != protocol['evaluation_splits'] or not np.isfinite(values).all():
+                raise ValueError(f'Invalid evaluation statistics: {path}/{pair}')
+        if len(calibration) != len(protocol['calibration_pair_ids']) or not np.isfinite(calibration).all():
+            raise ValueError(f'Invalid calibration statistics: {path}')
+        threshold = float(np.percentile(calibration, 100 * (1 - protocol['alpha']), method='linear'))
+        assert threshold == summary['threshold']
+        false_positives = int(np.sum(evaluation['holdhold'] > threshold))
+        true_positives = int(np.sum(evaluation['sushold'] > threshold))
+        assert false_positives == summary['false_positives']
+        assert true_positives == summary['true_positives']
+        rows[key] = {
+            'model': model, 'removed_mia': case,
+            'mia_methods': summary['mia_methods'], 'feature_columns': summary['feature_columns'],
+            'calibration_pairs': summary['calibration_pairs'],
+            'standard_threshold': standard_threshold, 'calibrated_threshold': summary['threshold'],
+            'standard_false_positives': int(np.sum(evaluation['holdhold'] > standard_threshold)),
+            'calibrated_false_positives': false_positives, 'fpr_trials': len(evaluation['holdhold']),
+            'standard_true_positives': int(np.sum(evaluation['sushold'] > standard_threshold)),
+            'calibrated_true_positives': true_positives, 'tpr_trials': len(evaluation['sushold']),
+        }
     if not rows:
         raise ValueError(f'No ablation runs found: {args.results}')
     for model, cases in expected.items():

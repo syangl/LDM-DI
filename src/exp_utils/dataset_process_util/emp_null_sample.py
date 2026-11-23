@@ -194,6 +194,19 @@ def save_metadata_only(df, output_file):
         json.dump(metadata_list, f, indent=4)
 
 
+def split_unfiltered_datasets(df, different_sources=False):
+    if different_sources:
+        coco = df[df['source_dataset'] == 'coco_2017_val']
+        laion = df[df['source_dataset'] == 'laion2b_multi_translated']
+        indices_a = random.sample(coco.index.tolist(), TARGET_TOTAL_SAMPLES)
+        indices_b = random.sample(laion.index.tolist(), TARGET_TOTAL_SAMPLES)
+    else:
+        indices = random.sample(df.index.tolist(), 2 * TARGET_TOTAL_SAMPLES)
+        indices_a = indices[:TARGET_TOTAL_SAMPLES]
+        indices_b = indices[TARGET_TOTAL_SAMPLES:]
+    return df.loc[indices_a].reset_index(drop=True), df.loc[indices_b].reset_index(drop=True)
+
+
 # def save_datasets(df, folder_name, dataset_configs):
 #     base_save_dir = os.path.join(OUTPUT_ROOT, folder_name)
 #     img_save_dir = os.path.join(base_save_dir, "data", "val")
@@ -256,6 +269,9 @@ def save_metadata_only(df, output_file):
 
 
 if __name__ == "__main__":
+    random.seed(attack_args.global_seed)
+    np.random.seed(attack_args.global_seed)
+    torch.manual_seed(attack_args.global_seed)
     tokenizer = AutoTokenizer.from_pretrained(
         os.path.join(attack_args.base_model_id, "tokenizer"), use_fast=False)
 
@@ -302,6 +318,11 @@ if __name__ == "__main__":
 
     prepared_df = prepare_datasets(dataloaders, clip_model=clip_model, exclude_indices=exclude_indices)
 
+    if attack_args.experiment == "rq2_rq5":
+        intermediate = os.path.join(OUTPUT_ROOT_PATH, "experiments", "shared_res", "RQ2_RQ5_calibration_pool", "intermediate")
+        os.makedirs(intermediate, exist_ok=True)
+        prepared_df.to_pickle(os.path.join(intermediate, "prepared_df.pkl"))
+
     os.makedirs(OUTPUT_ROOT, exist_ok=True)
 
     for pair_i in tqdm(range(NUM_PAIRS), desc="Generating base12 pairs"):
@@ -314,10 +335,19 @@ if __name__ == "__main__":
             print(f"Pair {pair_i + 1} already exists, skipping")
             continue
         
-        mixed_df_1, mixed_df_2 = split_datasets(prepared_df)
+        if attack_args.experiment == "rq2_rq5" and pair_i >= 500:
+            # RQ5 covers mixed-pool draws and cross-source draws without SCNS.
+            mixed_df_1, mixed_df_2 = split_unfiltered_datasets(prepared_df, different_sources=pair_i >= 1000)
+        else:
+            mixed_df_1, mixed_df_2 = split_datasets(prepared_df)
         
         save_metadata_only(mixed_df_1, base1_file)
         save_metadata_only(mixed_df_2, base2_file)  
+
+        if attack_args.experiment == "rq2_rq5" and pair_i < 500:
+            main_base = os.path.join(METADATA_ROOT_PATH, "D_base")
+            save_metadata_only(mixed_df_1, os.path.join(main_base, f"pair_{pair_i + 1}_base1.json"))
+            save_metadata_only(mixed_df_2, os.path.join(main_base, f"pair_{pair_i + 1}_base2.json"))
         
         print(f"Saved pair {pair_i + 1}: {base1_file}, {base2_file}")
     

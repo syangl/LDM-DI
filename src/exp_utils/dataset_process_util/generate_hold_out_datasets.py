@@ -148,6 +148,9 @@ def split_datasets(df):
 
 
 if __name__ == "__main__":
+    random.seed(attack_args.global_seed)
+    np.random.seed(attack_args.global_seed)
+    torch.manual_seed(attack_args.global_seed)
     tokenizer = AutoTokenizer.from_pretrained(
         os.path.join(attack_args.base_model_id, "tokenizer"), use_fast=False)
 

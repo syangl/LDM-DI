@@ -61,6 +61,7 @@ class ImageDS(Dataset):
             return self._load_non_original_dataset(DATASET_CONFIG)
 
     def _load_original_dataset(self, DATASET_CONFIG):
+        dataset_name = DATASET_CONFIG['dataset']
         load_path = DATASET_CONFIG["load_path"]
         ds = dict()
         image_name_list = os.listdir(load_path)
@@ -80,7 +81,15 @@ class ImageDS(Dataset):
         
         assert DATASET_CONFIG['load_num'] <= len(available_image_names), f"Not enough available samples, need {DATASET_CONFIG['load_num']}, only have {len(available_image_names)}"
         
-        image_name_list = global_random.sample(available_image_names, DATASET_CONFIG['load_num'])
+        if attack_args.sample_manifest:
+            with open(attack_args.sample_manifest, encoding='utf-8') as f:
+                indices = json.load(f)['source_indices'][dataset_name]
+            indices = [idx for idx in indices if str(idx) not in self.exclude_indices]
+            assert DATASET_CONFIG['load_num'] <= len(indices), f"Not enough manifest samples for {dataset_name}"
+            names = {int(os.path.splitext(name)[0]): name for name in available_image_names}
+            image_name_list = [names[idx] for idx in indices[:DATASET_CONFIG['load_num']]]
+        else:
+            image_name_list = global_random.sample(available_image_names, DATASET_CONFIG['load_num'])
         
         for i, image_name in tqdm(enumerate(image_name_list), desc="loading dataset...", total=len(image_name_list)):
             image_path = os.path.join(load_path, image_name)

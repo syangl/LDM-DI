@@ -109,6 +109,7 @@ def process_real_pool(prepared_df, base_dataset_path, ttest_dir, case):
     pair_files = [f for f in os.listdir(base_dataset_path) if f.endswith("_base1.json")]
     pair_files = [f for f in pair_files if (1 <= int(f.split('_')[1]) <= 500 if case == 'rq2'
                                           else 501 <= int(f.split('_')[1]) <= 1500)]
+    pair_files.sort(key=lambda name: int(name.split('_')[1]))
     
     print("[*] Processing Real Deltas & T-Stats...")
     for f in tqdm(pair_files):
@@ -181,7 +182,11 @@ def plot_clean_adaptive_basin(grid_df, ax, fig, title="", is_first_col=False, is
         ax.set_ylabel(r'Textural $U_{\mathrm{txt}}$', fontsize=AXES_LABEL_FONT_SIZE, labelpad=15)
         
     ax.locator_params(axis='x', nbins=4)
-    ax.locator_params(axis='y', nbins=5)
+    ax.locator_params(axis='y', nbins=8, steps=[1, 2, 5, 10])
+    lower, upper = ax.get_ylim()
+    ticks = ax.get_yticks()
+    step = ticks[1] - ticks[0]
+    ax.set_yticks(np.arange(upper, lower, -step)[::-1])
     ax.tick_params(axis='both', which='major', labelsize=TICK_FONT_SIZE, 
                    top=True, right=True, direction='in')
 
@@ -217,7 +222,7 @@ def plot_grid(results_root, output_root, case, verify_saved=False, plot_only=Fal
     shared = root / 'experiments/shared_res/RQ2_RQ5_calibration_pool'
     output_root = Path(output_root)
     output_dir = output_root / 'plot_analyze' / section
-    output_dir.mkdir(parents=True, exist_ok=plot_only)
+    output_dir.mkdir(parents=True, exist_ok=True)
     pool_output_dir = output_root / 'experiments' / section
     models = ['stable-diffusion-v1p5', 'commoncanvas-s-c', 'kandinsky-3']
     titles = ['Stable-Diffusion-v1-5', 'CommonCanvas-S-C', 'Kandinsky-3']
@@ -246,7 +251,7 @@ def plot_grid(results_root, output_root, case, verify_saved=False, plot_only=Fal
             prepared = pd.read_pickle(shared / 'intermediate/prepared_df.pkl')
             pool_df = update_texture_shift(pool_df, prepared, shared / 'datasets/D_base')
         pool_output_dir.mkdir(parents=True, exist_ok=True)
-        pool_df.to_csv(output_pool, index=False, mode='x')
+        pool_df.to_csv(output_pool, index=False)
         with (ttest_dir / 'pair_holdhold/ttest_pair_holdhold_results.json').open() as f:
             target_wts = np.array([r['t_statistic'] for r in json.load(f)])
         with (ttest_dir / 'pair_sushold/ttest_pair_sushold_results.json').open() as f:
@@ -289,9 +294,12 @@ if __name__ == '__main__':
     parser.add_argument('--results', type=Path, required=True, help='Input root containing experiments and plot_analyze')
     parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[3] / 'exp_data', help='Output root containing experiments and plot_analyze')
     parser.add_argument('--case', choices=['rq2', 'rq5', 'both'], default='both')
+    parser.add_argument('--global_seed', type=int, default=12345)
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--verify-saved', action='store_true', help='Compare computed values with the input grid coordinates and measurements')
     mode.add_argument('--plot-only', action='store_true', help='Redraw saved grid CSVs without recalculating or rewriting experiment data')
     args = parser.parse_args()
+    np.random.seed(args.global_seed)
+    torch.manual_seed(args.global_seed)
     for case in (['rq2', 'rq5'] if args.case == 'both' else [args.case]):
         plot_grid(args.results, args.output, case, args.verify_saved, args.plot_only)

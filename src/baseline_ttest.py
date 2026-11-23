@@ -164,6 +164,7 @@ def process_single_pair(loader, test_i, dataset1_name, dataset2_name, CDI_OUTPUT
 
 
 if __name__ == "__main__":
+    torch.manual_seed(attack_args.global_seed)
     SPLIT_TIMES = attack_args.split_times  # Number of repeated tests
     
     dataset1_name = attack_args.used_datasets[0]

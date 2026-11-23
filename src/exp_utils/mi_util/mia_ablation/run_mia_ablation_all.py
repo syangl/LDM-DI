@@ -1,26 +1,31 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import gzip
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import shutil
+
+if __name__ == '__main__':
+    sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from exp_utils.config_util.attack_config import attack_args, OUTPUT_ROOT_PATH
 
 
 def main():
     args = attack_args
-    output = Path(OUTPUT_ROOT_PATH)
+    output = Path(OUTPUT_ROOT_PATH) / 'experiments/MIA_ablation'
     output.mkdir(parents=True, exist_ok=True)
     os.environ.setdefault('MPLBACKEND', 'Agg')
-    from run_mia_ablation import MIA_COLUMNS
+    from exp_utils.mi_util.mia_ablation.run_mia_ablation import MIA_COLUMNS
 
     if args.feature_root is None or args.metadata_root is None:
         raise ValueError('Set feature_root and metadata_root to the saved experiment inputs')
     feature_root = os.path.abspath(args.feature_root)
     metadata_root = os.path.abspath(args.metadata_root)
     local_dataset_path = os.path.abspath(args.local_dataset_path)
-    main_results = str(Path(args.main_results).resolve()) if args.main_results else str(output / 'experiments/RQ3_calibration_performance')
+    main_results = str(Path(args.main_results).resolve()) if args.main_results else str(Path(OUTPUT_ROOT_PATH) / 'experiments/RQ3_calibration_performance')
     models = args.models or ['stable-diffusion-v1p5', 'commoncanvas-s-c', 'kandinsky-3']
     scripts = Path(__file__).resolve().parent
     env = os.environ.copy()
@@ -42,16 +47,17 @@ def main():
                        '--dataset_total_num', str(args.dataset_total_num),
                        '--num_pairs', str(args.num_pairs), '--k_base', str(args.k_base),
                        '--split_times', str(args.split_times), '--global_seed', str(args.global_seed),
-                       '--output_root', str(output / model / case)]
+                       '--output_root', OUTPUT_ROOT_PATH]
             commands[model, case] = command
             model_commands[case] = command
         (output / f'commands_{model}.json').write_text(json.dumps(model_commands, indent=2) + '\n')
 
     def run(job):
         model, case = job
-        with (output / 'logs' / model / f'{case}.log').open('a') as log:
-            result = subprocess.run(commands[job], env=env, stdout=log, stderr=subprocess.STDOUT)
-        return job, result.returncode
+        with gzip.open(output / 'logs' / model / f'{case}.log.gz', 'wb') as log:
+            with subprocess.Popen(commands[job], env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as process:
+                shutil.copyfileobj(process.stdout, log)
+        return job, process.returncode
 
     failed = []
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
