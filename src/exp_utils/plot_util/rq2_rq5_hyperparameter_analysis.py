@@ -160,11 +160,14 @@ def plot_clean_adaptive_basin(grid_df, ax, fig, title="", is_first_col=False, is
 
     fixed_levels = np.linspace(0.0, 1.0, 51)
     ax.set_facecolor('white')
-    c = ax.contourf(X, Y, np.ma.masked_invalid(Z_loss), levels=fixed_levels, cmap=cmap, extend='max')
+    c = ax.contourf(X, Y, np.ma.masked_invalid(Z_loss), levels=fixed_levels, cmap=cmap, extend='max', zorder=-1)
+    ax.set_rasterization_zorder(0)
 
     cs_k = ax.contour(X, Y, Z_k, levels=K_LEVELS, colors=K_COLORS, linewidths=4, linestyles=K_LINESTYLES, alpha=0.9)
-
-    constrained_df = grid_df[grid_df['k_base'] <= 500]
+    # Keep every contour above the lower frame, with one grid step of padding.
+    contour_bottom = min(segment[:, 1].min() for segments in cs_k.allsegs for segment in segments if len(segment))
+    first_data_row = Y[np.isfinite(Z_loss).any(axis=1)][0]
+    ax.set_ylim(max(first_data_row, contour_bottom - (Y[1] - Y[0])), Y[-1])
     
     if is_last_col:
         cbar = fig.colorbar(c, ax=ax, fraction=0.046, pad=0.04)
@@ -204,9 +207,9 @@ def compute_grid(pool_df, target_wts, member_wts, u_sem_grid, u_txt_grid, alpha=
             results.append((u_sem, u_txt, k_base, fpr, tpr, du_loss))
     return pd.DataFrame(results, columns=['u_sem', 'u_txt', 'k_base', 'fpr', 'tpr', 'du_loss'])
 
-def plot_grid(results_root, output_root, case, verify_saved=False):
+def plot_grid(results_root, output_root, case, verify_saved=False, plot_only=False):
     """
-    Build or reuse measured pools, compute a grid, and draw its contour figure.
+    Compute a calibration grid or redraw a saved one.
     """
     from pathlib import Path
     root = Path(results_root)
@@ -214,12 +217,16 @@ def plot_grid(results_root, output_root, case, verify_saved=False):
     shared = root / 'experiments/shared_res/RQ2_RQ5_calibration_pool'
     output_root = Path(output_root)
     output_dir = output_root / 'plot_analyze' / section
-    output_dir.mkdir(parents=True, exist_ok=False)
+    output_dir.mkdir(parents=True, exist_ok=plot_only)
     pool_output_dir = output_root / 'experiments' / section
     models = ['stable-diffusion-v1p5', 'commoncanvas-s-c', 'kandinsky-3']
     titles = ['Stable-Diffusion-v1-5', 'CommonCanvas-S-C', 'Kandinsky-3']
     fig, axes = plt.subplots(1, 3, figsize=(24, 8), sharey=False)
     for i, (model, title) in enumerate(zip(models, titles)):
+        if plot_only:
+            grid = pd.read_csv(root / 'plot_analyze' / section / f'grid_search_{model}.csv', float_precision='round_trip')
+            plot_clean_adaptive_basin(grid, axes[i], fig, f'({chr(97+i)}) {title}', i == 0, i == 2)
+            continue
         pool_path = root / 'experiments' / section / f'real_pool_{model}.csv'
         output_pool = pool_output_dir / pool_path.name
         ttest_dir = shared / 'intermediate' / model / 'ttest'
@@ -261,9 +268,8 @@ def plot_grid(results_root, output_root, case, verify_saved=False):
                 raise ValueError(f'Recomputed grid differs from saved {case}: {model}')
         grid.to_csv(output_dir / f'grid_search_{model}.csv', index=False)
         plot_clean_adaptive_basin(grid, axes[i], fig, f'({chr(97+i)}) {title}', i == 0, i == 2)
-        if case == 'rq2':
-            axes[i].set_ylim(0.10, 0.15)
-            axes[i].tick_params(axis='x', pad=12)
+    for ax in axes:
+        ax.tick_params(axis='x', pad=12)
     handles = [mlines.Line2D([], [], linestyle='none', label=r'$K_{\mathrm{base}}$')]
     handles += [mlines.Line2D([], [], color=c, linewidth=4, linestyle=ls, label=f'${k}$')
                 for c, k, ls in zip(K_COLORS, K_LEVELS, K_LINESTYLES)]
@@ -274,21 +280,18 @@ def plot_grid(results_root, output_root, case, verify_saved=False):
     filename = 'fig_heatmap_3models_combined.pdf' if case == 'rq2' else 'fig_rq5_heatmap_3models_combined.pdf'
     fig.savefig(output_dir / filename, dpi=300, bbox_inches='tight')
     fig.savefig(output_dir / filename.replace('.pdf', '.png'), dpi=150, bbox_inches='tight')
-    if case == 'rq2':
-        for ax in axes:
-            ax.set_ylim(0.04, 0.15)
-        fig.savefig(output_dir / filename.replace('.pdf', '_full.pdf'), dpi=300, bbox_inches='tight')
-        fig.savefig(output_dir / filename.replace('.pdf', '_full.png'), dpi=150, bbox_inches='tight')
     plt.close(fig)
 
 if __name__ == '__main__':
     import argparse
     from pathlib import Path
-    parser = argparse.ArgumentParser(description='Generate RQ2/RQ5 pools and grids, or verify saved measurements')
+    parser = argparse.ArgumentParser(description='Generate, verify or redraw RQ2/RQ5 calibration grids')
     parser.add_argument('--results', type=Path, required=True, help='Input root containing experiments and plot_analyze')
     parser.add_argument('--output', type=Path, default=Path(__file__).resolve().parents[3] / 'exp_data', help='Output root containing experiments and plot_analyze')
     parser.add_argument('--case', choices=['rq2', 'rq5', 'both'], default='both')
-    parser.add_argument('--verify-saved', action='store_true', help='Compare computed values with the input grid coordinates and measurements')
+    mode = parser.add_mutually_exclusive_group()
+    mode.add_argument('--verify-saved', action='store_true', help='Compare computed values with the input grid coordinates and measurements')
+    mode.add_argument('--plot-only', action='store_true', help='Redraw saved grid CSVs without recalculating or rewriting experiment data')
     args = parser.parse_args()
     for case in (['rq2', 'rq5'] if args.case == 'both' else [args.case]):
-        plot_grid(args.results, args.output, case, args.verify_saved)
+        plot_grid(args.results, args.output, case, args.verify_saved, args.plot_only)
